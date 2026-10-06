@@ -1270,7 +1270,7 @@ export function ResidentPayments({ me, startGcashPayment }) {
             <strong>Reason:</strong> {me.paymentRejectionReason}
           </div>
           <button
-            onClick={() => openPaymentModal(me.id)}
+            onClick={() => startGcashPayment(me.id)}
             className="text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-md transition"
           >
             Try again
