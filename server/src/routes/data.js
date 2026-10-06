@@ -564,22 +564,27 @@ router.post("/bills/:id/gcash/confirm", authMiddleware("admin"), (req, res) => {
 // POST /api/bills/:id/gcash/reject  (admin only) — reject a pending GCash payment
 // Reset it to Unpaid so the resident can try again
 router.post("/bills/:id/gcash/reject", authMiddleware("admin"), (req, res) => {
-  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
-  if (!bill) return res.status(404).json({ error: "Bill not found." });
-  if (bill.payment_status !== "GCash Pending") {
-    return res.status(400).json({ error: "This bill is not pending GCash confirmation." });
+  try {
+    const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
+    if (!bill) return res.status(404).json({ error: "Bill not found." });
+    if (bill.payment_status !== "GCash Pending") {
+      return res.status(400).json({ error: "This bill is not pending GCash confirmation." });
+    }
+
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "Payment rejected by admin";
+
+    db.prepare(
+      `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL,
+                        receipt_image = NULL, payment_rejection_reason = ?, payment_date = NULL
+       WHERE id = ?`
+    ).run(reason, req.params.id);
+
+    recordAudit(req, "bill.gcash_reject", bill.household_id, `Rejected pending GCash payment for ${bill.household_id} (${bill.period}): ${reason}`);
+    res.json({ success: true, message: `Payment rejected. Resident notified: "${reason}"` });
+  } catch (err) {
+    console.error("Error rejecting GCash payment:", err);
+    res.status(500).json({ error: "Failed to reject payment: " + err.message });
   }
-
-  const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "Payment rejected by admin";
-
-  db.prepare(
-    `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL,
-                      receipt_image = NULL, payment_rejection_reason = ?, payment_date = NULL
-     WHERE id = ?`
-  ).run(reason, req.params.id);
-
-  recordAudit(req, "bill.gcash_reject", bill.household_id, `Rejected pending GCash payment for ${bill.household_id} (${bill.period}): ${reason}`);
-  res.json({ success: true, message: `Payment rejected. Resident notified: "${reason}"` });
 });
 
 // POST /api/bills/:id/cash/initiate — resident declares intent to pay in
