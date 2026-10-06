@@ -221,6 +221,14 @@ function initSchema() {
     db.exec("ALTER TABLE readings ADD COLUMN source TEXT NOT NULL DEFAULT 'device'");
   }
 
+  const billColumns = db.prepare("PRAGMA table_info(bills)").all().map((c) => c.name);
+  if (!billColumns.includes("receipt_image")) {
+    db.exec("ALTER TABLE bills ADD COLUMN receipt_image TEXT");
+  }
+  if (!billColumns.includes("payment_rejection_reason")) {
+    db.exec("ALTER TABLE bills ADD COLUMN payment_rejection_reason TEXT");
+  }
+
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_households_device_key ON households(device_key) WHERE device_key IS NOT NULL");
   // Real-time detection looks up a household's readings by time range (leak
   // streak, learned High Flow threshold) on every device report.
