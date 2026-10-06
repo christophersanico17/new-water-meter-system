@@ -355,6 +355,8 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
   const [confirmPay, setConfirmPay] = React.useState(null);
   const [verifyGcash, setVerifyGcash] = React.useState(null);
   const [adminReference, setAdminReference] = React.useState("");
+  const [rejectionReason, setRejectionReason] = React.useState("");
+  const [showRejectModal, setShowRejectModal] = React.useState(false);
   // Method picked in the "Mark paid" modal — "Offline" (cash) or "GCash"
   // (manually recording a GCash payment received outside the automatic flow).
   const [payMethod, setPayMethod] = React.useState("Offline");
@@ -770,10 +772,8 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                 <button
                   type="button"
                   onClick={() => {
-                    const reason = prompt("Why are you rejecting this payment? (This will be sent to the resident)");
-                    if (reason) {
-                      rejectGcashPayment(reason);
-                    }
+                    setRejectionReason("");
+                    setShowRejectModal(true);
                   }}
                   className="text-rose-600 hover:text-rose-700 text-xs font-semibold px-3 py-2"
                 >
@@ -792,6 +792,46 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-[min(100%,28rem)] overflow-hidden shadow-2xl">
+            <div className="bg-rose-600 text-white px-5 py-4 flex items-center justify-between">
+              <div className="font-bold">Rejection reason</div>
+              <button onClick={() => setShowRejectModal(false)} className="text-white/80 hover:text-white text-lg leading-none">×</button>
+            </div>
+            <div className="p-5">
+              <div className="text-sm text-slate-600 mb-4">Why are you rejecting this payment? This message will be sent to the resident.</div>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g., Receipt image not clear, Reference number doesn't match, Payment already received..."
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none h-24"
+              />
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-sm py-2 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (rejectionReason.trim()) {
+                      rejectGcashPayment(rejectionReason.trim());
+                      setShowRejectModal(false);
+                    }
+                  }}
+                  disabled={!rejectionReason.trim()}
+                  className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold text-sm py-2 rounded-lg transition"
+                >
+                  Send rejection
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
