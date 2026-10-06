@@ -346,7 +346,7 @@ export function ConsumptionPage({ households }) {
   );
 }
 
-export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, rejectGcash, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
+export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
   const paidCount = households.length - unpaidCount;
   const gcashPendingCount = households.filter((h) => h.paymentStatus === "GCash Pending").length;
   const cashPendingCount = households.filter((h) => h.paymentStatus === "Cash Pending").length;
