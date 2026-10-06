@@ -16,6 +16,7 @@ import {
   fetchAdminAccounts,
   createAdminAccount,
   deleteAdminAccount,
+  rejectGcash,
 } from "../api";
 
 const MONTHS = [
@@ -345,7 +346,7 @@ export function ConsumptionPage({ households }) {
   );
 }
 
-export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
+export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, rejectGcash, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
   const paidCount = households.length - unpaidCount;
   const gcashPendingCount = households.filter((h) => h.paymentStatus === "GCash Pending").length;
   const cashPendingCount = households.filter((h) => h.paymentStatus === "Cash Pending").length;
@@ -401,12 +402,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
       const household = households.find((h) => h.id === verifyGcash.id);
       if (!household?.bill_id) throw new Error("No bill found.");
 
-      // Call the API to reject the payment
-      if (typeof receiveGcashPayment === "function") {
-        // Use the actual API function passed from parent
-        // For now, we'll make a direct API call
-      }
-
+      await rejectGcash(household.bill_id, reason);
       setVerifyGcash(null);
       setAdminReference("");
       showToast(`Payment from ${verifyGcash.id} rejected. Resident notified: "${reason}"`, "warn");
