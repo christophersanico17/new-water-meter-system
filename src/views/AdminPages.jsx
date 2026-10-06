@@ -16,7 +16,6 @@ import {
   fetchAdminAccounts,
   createAdminAccount,
   deleteAdminAccount,
-  rejectGcash,
 } from "../api";
 
 const MONTHS = [
@@ -346,7 +345,7 @@ export function ConsumptionPage({ households }) {
   );
 }
 
-export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
+export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, handleRejectGcashPayment, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
   const paidCount = households.length - unpaidCount;
   const gcashPendingCount = households.filter((h) => h.paymentStatus === "GCash Pending").length;
   const cashPendingCount = households.filter((h) => h.paymentStatus === "Cash Pending").length;
@@ -402,11 +401,10 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
       const household = households.find((h) => h.id === verifyGcash.id);
       if (!household?.bill_id) throw new Error("No bill found.");
 
-      await rejectGcash(household.bill_id, reason);
+      await handleRejectGcashPayment(household.bill_id, reason);
       setVerifyGcash(null);
       setAdminReference("");
       showToast(`Payment from ${verifyGcash.id} rejected. Resident notified: "${reason}"`, "warn");
-      await loadFromAPI(true);
     } catch (err) {
       showToast("Error rejecting payment: " + err.message, "warn");
     }

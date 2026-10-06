@@ -738,6 +738,20 @@ export default function WaterSystemPrototype() {
     return true;
   }
 
+  async function handleRejectGcashPayment(billId, reason) {
+    if (USE_API) {
+      try {
+        await rejectGcash(billId, reason);
+        await loadFromAPI(true);
+        return true;
+      } catch (err) {
+        showToast("Error rejecting payment: " + err.message, "warn");
+        return false;
+      }
+    }
+    return true;
+  }
+
   // Admin confirms cash they've physically received for a resident's
   // "Cash Pending" bill — the only way a cash payment ever becomes Paid.
   async function receiveCashPayment(id) {
@@ -936,6 +950,7 @@ export default function WaterSystemPrototype() {
           markUnpaid={markUnpaid}
           receiveGcashPayment={receiveGcashPayment}
           receiveCashPayment={receiveCashPayment}
+          handleRejectGcashPayment={handleRejectGcashPayment}
           showToast={showToast}
           alertFilter={alertFilter}
           setAlertFilter={setAlertFilter}

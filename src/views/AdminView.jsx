@@ -100,6 +100,7 @@ export function AdminView(props) {
     markUnpaid,
     receiveGcashPayment,
     receiveCashPayment,
+    handleRejectGcashPayment,
     showToast,
     alertFilter,
     setAlertFilter,
@@ -320,6 +321,7 @@ export function AdminView(props) {
               markUnpaid={markUnpaid}
               receiveGcashPayment={receiveGcashPayment}
               receiveCashPayment={receiveCashPayment}
+              handleRejectGcashPayment={handleRejectGcashPayment}
               showToast={showToast}
               billsGenerated={billsGenerated}
               unpaidCount={unpaidCount}
