@@ -3,7 +3,7 @@ import { Badge, StatCard, Btn } from "../ui/atoms";
 import { SectionHeader } from "../components/SectionHeader";
 import { BillReplica } from "../components/BillReplica";
 import { deviceStatus, isDeviceOnline, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
-import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, dateStamp, peso, isOverdue, daysOverdue } from "../data";
+import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, peso, isOverdue, daysOverdue } from "../data";
 import {
   fetchAnnouncements,
   createAnnouncement,
@@ -33,26 +33,55 @@ function householdPurok(household) {
   const inferredGroup = `Purok ${inferredPurok}`;
   return PUROK_GROUPS.includes(inferredGroup) ? inferredGroup : "Other";
 }
-export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
-  const recentAlerts = alerts.slice(0, 5);
+export function DashboardPage({ households, alerts, unpaidCount, setPage, onGenerateBills, canGenerateBills = false }) {
   const goto = (p) => { if (typeof setPage === "function") setPage(p); };
 
-  // The date the dashboard is "viewing". Defaults to the configured billing
-  // period (e.g. "May 2026") so the chart lines up with the billing summary.
-  const [bpMonth, bpYear] = ["May", "2026"];
+  // Re-render periodically so a sensor that goes quiet drops out of the
+  // "Sensors online" count even when no new data arrives.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), DEVICE_STATUS_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // The date the dashboard is "viewing". Defaults to today.
   const today = new Date();
-  const [month, setMonth] = useState(Math.max(0, MONTHS.indexOf(bpMonth))); // 0–11
-  const [year, setYear] = useState(Number(bpYear) || today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth()); // 0–11
+  const [year, setYear] = useState(today.getFullYear());
   const [day, setDay] = useState(today.getDate());
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const safeDay = Math.min(day, daysInMonth);
   const periodLabel = `${MONTHS[month]} ${year}`;
   const currentPeriodLabel = `${MONTHS[today.getMonth()]} ${today.getFullYear()}`;
+  // Bills store their period with a short month name ("Oct 2026"), so match
+  // billing history on these keys — periodLabel is only for display.
+  const periodKey = `${MONTH_SHORT_NAMES[month]} ${year}`;
+  const currentPeriodKey = `${MONTH_SHORT_NAMES[today.getMonth()]} ${today.getFullYear()}`;
+  const isCurrentPeriod = periodKey === currentPeriodKey;
+
+  const provisionedCount = households.filter((h) => h.deviceProvisioned).length;
+  const onlineCount = households.filter(isDeviceOnline).length;
   const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const displayDate = new Date(year, month, safeDay).toLocaleDateString("en-PH", {
     year: "numeric", month: "long", day: "numeric",
   });
+
+  // Alerts follow the viewing period: the stat card counts alerts raised on
+  // the selected day, the "Recent alerts" table lists the selected month's.
+  // Alerts without a real timestamp (offline demo data) are always kept.
+  const isSelectedToday =
+    year === today.getFullYear() && month === today.getMonth() && safeDay === today.getDate();
+  const inSelectedMonth = (a) =>
+    !(a.createdAt instanceof Date) ||
+    (a.createdAt.getFullYear() === year && a.createdAt.getMonth() === month);
+  const dayAlertCount = alerts.filter(
+    (a) => inSelectedMonth(a) && (!(a.createdAt instanceof Date) || a.createdAt.getDate() === safeDay)
+  ).length;
+  const recentAlerts = alerts.filter(inSelectedMonth).slice(0, 5);
+  const alertCardLabel = isSelectedToday
+    ? "Alerts today"
+    : `Alerts on ${new Date(year, month, safeDay).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}`;
 
   // Years offered in the picker: every year present in billing history plus a
   // couple around today, so the admin can move between real periods.
@@ -67,8 +96,8 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
   // history. For the current month, prefer a fresh meter reading over the
   // bill snapshot so consumption keeps updating through the month.
   const withUsage = households.map((h) => {
-    const rec = (h.history || []).find((r) => r.period === periodLabel);
-    const previousPeriodRecord = (h.history || []).filter((r) => r.period !== currentPeriodLabel).at(-1);
+    const rec = (h.history || []).find((r) => r.period === periodKey);
+    const previousPeriodRecord = (h.history || []).filter((r) => r.period !== currentPeriodKey).at(-1);
     const currentPeriodBaseline = rec?.prev ?? previousPeriodRecord?.curr;
     const hasCurrentMonthReading =
       periodLabel === currentPeriodLabel &&
@@ -76,11 +105,13 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
       Number.isFinite(Number(h.currCm3)) &&
       Number.isFinite(Number(currentPeriodBaseline));
     const hasRealData = Boolean(rec || hasCurrentMonthReading);
-    const periodUsage = hasCurrentMonthReading
+    const rawUsage = hasCurrentMonthReading
       ? Math.max(0, Number(h.currCm3) - Number(currentPeriodBaseline))
       : rec
       ? Math.max(0, rec.curr - rec.prev)
       : 0;
+    // Round off float subtraction noise (e.g. 2.4385000000000012 -> 2.44).
+    const periodUsage = Math.round(rawUsage * 100) / 100;
     return {
       ...h,
       rec,
@@ -89,12 +120,21 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
       hasBillData: Boolean(rec),
       // Only the latest billing period carries a live paid/unpaid status; older
       // periods are treated as settled (same convention as the resident view).
-      isLatestPeriod: periodLabel === h.period,
+      isLatestPeriod: periodKey === h.period,
     };
   });
-  const top10 = [...withUsage].sort((a, b) => b.periodUsage - a.periodUsage).slice(0, 10);
+  // Only households that actually used water get a bar; the rest are
+  // summarised in a note under the chart instead of drawn as empty bars.
+  const usedWater = withUsage.filter((h) => h.periodUsage > 0);
+  const top10 = [...usedWater].sort((a, b) => b.periodUsage - a.periodUsage).slice(0, 10);
+  const noUsageCount = withUsage.length - usedWater.length;
   const maxUsage = Math.max(...top10.map((h) => h.periodUsage), 1);
   const anyData = withUsage.some((h) => h.hasData);
+
+  async function generateBillsForPeriod() {
+    if (!window.confirm(`Generate ${periodKey} bills for all ${households.length} households?`)) return;
+    await onGenerateBills(periodKey);
+  }
   const billingRows = withUsage.filter((h) => h.hasBillData).slice(0, 6);
 
   const selectCls =
@@ -128,11 +168,15 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
         <button onClick={() => goto("households")} className="flex-1 min-w-[130px] text-left">
           <StatCard label="Total households" value={households.length} />
         </button>
-        <button onClick={() => goto("consumption")} className="flex-1 min-w-[130px] text-left">
-          <StatCard label="Active connections" value={households.length} tone="good" />
+        <button onClick={() => goto("households")} className="flex-1 min-w-[130px] text-left">
+          <StatCard
+            label="Sensors online"
+            value={provisionedCount > 0 ? `${onlineCount} / ${provisionedCount}` : "None connected"}
+            tone={provisionedCount === 0 ? "default" : onlineCount === provisionedCount ? "good" : "bad"}
+          />
         </button>
         <button onClick={() => goto("alerts")} className="flex-1 min-w-[130px] text-left">
-          <StatCard label="Alerts today" value={alerts.filter((a) => a.status === "Unresolved").length} tone="warn" />
+          <StatCard label={alertCardLabel} value={dayAlertCount} tone="warn" />
         </button>
         <button onClick={() => goto("billing")} className="flex-1 min-w-[130px] text-left">
           <StatCard label="Unpaid bills" value={unpaidCount} tone="bad" />
@@ -142,7 +186,13 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
         <div className="lg:col-span-2 card-hover bg-white rounded-lg border border-slate-200 p-4">
           <div className="font-semibold text-[13px] text-slate-700 mb-3">Water consumption — Month of {periodLabel} (CM³) · top households</div>
-          {anyData ? (
+          {anyData && top10.length === 0 ? (
+            <div className="h-32 flex flex-col items-center justify-center text-center gap-1">
+              <div className="text-[12px] text-slate-500">No usage recorded for {periodLabel} yet.</div>
+              <div className="text-[11px] text-slate-400">All {withUsage.length} households are at 0 CM³.</div>
+            </div>
+          ) : anyData ? (
+            <>
             <div className="flex items-end gap-2 h-32">
               <style>{`
                 @keyframes barRise {
@@ -171,6 +221,12 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
                 );
               })}
             </div>
+            {noUsageCount > 0 && (
+              <div className="text-[11px] text-slate-400 mt-3">
+                {noUsageCount} other household{noUsageCount === 1 ? " has" : "s have"} no usage recorded for {periodLabel}.
+              </div>
+            )}
+            </>
           ) : (
             <div className="h-32 flex flex-col items-center justify-center text-center gap-1">
               <div className="text-[12px] text-slate-500">No consumption records for {periodLabel}.</div>
@@ -180,12 +236,18 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
         </div>
 
         <div className="card-hover bg-white rounded-lg border border-slate-200 p-4">
-          <div className="font-semibold text-[13px] text-slate-700 mb-3">Recent alerts</div>
+          <div className="font-semibold text-[13px] text-slate-700 mb-3">Recent alerts — {periodLabel}</div>
+          {recentAlerts.length === 0 ? (
+            <div className="h-32 flex items-center justify-center text-[12px] text-slate-500">
+              No alerts in {periodLabel}.
+            </div>
+          ) : (
           <table className="w-full text-[11px]">
             <thead>
               <tr className="text-slate-400 border-b border-slate-100">
                 <th className="text-left font-medium pb-1.5">Household</th>
                 <th className="text-left font-medium pb-1.5">Type</th>
+                <th className="text-left font-medium pb-1.5">Status</th>
                 <th className="text-right font-medium pb-1.5">Time</th>
               </tr>
             </thead>
@@ -194,11 +256,17 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
                 <tr key={a.id} className="border-b border-slate-50">
                   <td className="py-1.5 font-medium text-slate-700">{a.householdId}</td>
                   <td className={`py-1.5 ${a.type === "Leak Detected" ? "text-rose-600" : a.type === "High Flow" ? "text-amber-600" : "text-slate-400"}`}>{a.type}</td>
+                  <td className="py-1.5">
+                    {a.status === "Resolved"
+                      ? <span className="text-emerald-600">Resolved</span>
+                      : <span className="font-semibold text-rose-600">Open</span>}
+                  </td>
                   <td className="py-1.5 text-right text-slate-400">{a.time}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 
@@ -241,7 +309,17 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
         </table>
         </div>
         ) : (
-          <div className="py-8 text-center text-[12px] text-slate-400">No bills for {periodLabel}.</div>
+          <div className="py-8 flex flex-col items-center gap-3 text-center">
+            <div className="text-[12px] text-slate-400">No bills for {periodLabel}.</div>
+            {/* Only the current month: the server bills from each household's
+                latest reading, so generating a past or future month from here
+                would produce wrong figures. */}
+            {isCurrentPeriod && canGenerateBills && typeof onGenerateBills === "function" && (
+              <Btn variant="primary" onClick={generateBillsForPeriod}>
+                Generate {periodKey} bills
+              </Btn>
+            )}
+          </div>
         )}
       </div>
     </>
@@ -251,10 +329,9 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage }) {
 export function ConsumptionPage({ households }) {
   // Period selector — mirrors the dashboard's, scoped to month + year since
   // consumption is a monthly figure.
-  const [bpMonth, bpYear] = ["May", "2026"];
   const today = new Date();
-  const [month, setMonth] = useState(Math.max(0, MONTHS.indexOf(bpMonth)));
-  const [year, setYear] = useState(Number(bpYear) || today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [year, setYear] = useState(today.getFullYear());
   const periodLabel = `${MONTHS[month]} ${year}`;
 
   const historyYears = households.flatMap((h) =>
@@ -266,10 +343,12 @@ export function ConsumptionPage({ households }) {
 
   // Readings for the selected period, from each household's billing history.
   // Live flow/status only apply to the current (latest) period.
+  // Bills store periods with a short month name ("Oct 2026").
+  const periodKey = `${MONTH_SHORT_NAMES[month]} ${year}`;
   const rows = households
     .map((h) => {
-      const rec = (h.history || []).find((r) => r.period === periodLabel);
-      return { ...h, rec, isLatest: periodLabel === h.period, hasData: !!rec };
+      const rec = (h.history || []).find((r) => r.period === periodKey);
+      return { ...h, rec, isLatest: periodKey === h.period, hasData: !!rec };
     })
     .filter((h) => h.hasData);
 
@@ -345,7 +424,7 @@ export function ConsumptionPage({ households }) {
   );
 }
 
-export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, handleRejectGcashPayment, showToast, billsGenerated, unpaidCount, onGenerateBills, canGenerateBills = true }) {
+export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, handleRejectGcashPayment, showToast, unpaidCount, onGenerateBills, canGenerateBills = true }) {
   const paidCount = households.length - unpaidCount;
   const gcashPendingCount = households.filter((h) => h.paymentStatus === "GCash Pending").length;
   const cashPendingCount = households.filter((h) => h.paymentStatus === "Cash Pending").length;
@@ -426,7 +505,17 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
     "November",
     "December",
   ];
-  const yearOptions = ["All years", "2024", "2025", "2026", "2027"];
+  // Every year that has bills, plus this year and next, so a new year's
+  // bills can always be generated and viewed.
+  const thisYear = new Date().getFullYear();
+  const yearOptions = [
+    "All years",
+    ...[...new Set([
+      ...households.flatMap((h) => (h.history || []).map((r) => Number(String(r.period).split(" ")[1]))).filter(Boolean),
+      thisYear,
+      thisYear + 1,
+    ])].sort((a, b) => a - b).map(String),
+  ];
   const monthMap = {
     January: "Jan",
     February: "Feb",
@@ -441,8 +530,9 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
     November: "Nov",
     December: "Dec",
   };
-  const [selectedBillingMonth, setSelectedBillingMonth] = React.useState("May");
-  const [selectedBillingYear, setSelectedBillingYear] = React.useState("2026");
+  // Opens on the current month.
+  const [selectedBillingMonth, setSelectedBillingMonth] = React.useState(() => MONTHS[new Date().getMonth()]);
+  const [selectedBillingYear, setSelectedBillingYear] = React.useState(() => String(new Date().getFullYear()));
   const selectedPeriodLabel =
     selectedBillingMonth === "All months"
       ? selectedBillingYear === "All years"
@@ -466,12 +556,30 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
       ? null
       : `${monthMap[selectedBillingMonth]} ${selectedBillingYear}`;
 
-  const filteredBillingRecords = billingRecords.filter(({ household }) => {
+  // Only a household's latest bill carries its live payment state (pending
+  // GCash/cash, overdue) and is the one the payment actions act on; older
+  // bills show the status saved on that bill.
+  const isLatestBill = ({ household, record }) => record.period === household.period;
+  const rowStatus = (row) =>
+    isLatestBill(row) ? row.household.paymentStatus : row.record.paid ? "Paid" : "Unpaid";
+  const rowMethod = (row) => {
+    if (isLatestBill(row)) {
+      const { paymentStatus, paymentMethod } = row.household;
+      if (paymentStatus === "Paid") return paymentMethod === "GCash" ? "GCash" : "Cash";
+      if (paymentStatus === "GCash Pending") return "GCash";
+      if (paymentStatus === "Cash Pending") return "Cash";
+      return "Pending";
+    }
+    if (!row.record.paid) return "—";
+    if (row.record.method === "Carried") return "With later bill";
+    return row.record.method === "GCash" ? "GCash" : row.record.method ? "Cash" : "—";
+  };
+  const rowConsumed = (row) => usedCm3(row.record);
+
+  const filteredBillingRecords = billingRecords.filter((row) => {
     if (statusFilter === "All") return true;
-    if (statusFilter === "GCash Pending") return household.paymentStatus === "GCash Pending";
-    if (statusFilter === "Cash Pending") return household.paymentStatus === "Cash Pending";
-    if (statusFilter === "Overdue") return isOverdue(household);
-    return statusFilter === "Paid" ? household.paymentStatus === "Paid" : household.paymentStatus === "Unpaid";
+    if (statusFilter === "Overdue") return isLatestBill(row) && isOverdue(row.household);
+    return rowStatus(row) === statusFilter;
   });
 
   return (
@@ -525,19 +633,21 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
           )}
           <Btn onClick={() => window.print()}>Export PDF</Btn>
           <Btn onClick={() => {
-            const header = ["Bill #","Household","Resident name","Standpost #","Meter #","Prev CM3","Curr CM3","Consumed","Total Amount","Method","Status"];
-            const rows = filteredBillingRecords.map(({ household, record }, i) => [
+            const header = ["Bill #","Period","Household","Resident name","Standpost #","Meter #","Prev CM3","Curr CM3","Consumed","Total Amount","Method","Date paid","Status"];
+            const rows = filteredBillingRecords.map((row, i) => [
               `BL-${String(i + 1).padStart(3, "0")}`,
-              household.id,
-              household.name,
-              household.standpost,
-              household.meter,
-              record.prev,
-              record.curr,
-              record.curr - record.prev,
-              record.amt,
-              household.paymentStatus === "Paid" ? (household.paymentMethod === "GCash" ? "GCash" : "Cash") : household.paymentStatus === "GCash Pending" ? "GCash" : household.paymentStatus === "Cash Pending" ? "Cash" : "Pending",
-              household.paymentStatus,
+              row.record.period,
+              row.household.id,
+              row.household.name,
+              row.household.standpost,
+              row.household.meter,
+              row.record.prev,
+              row.record.curr,
+              rowConsumed(row),
+              row.record.amt,
+              rowMethod(row),
+              row.record.paid ? formatPaymentDate(row.record.paidDate) : "",
+              rowStatus(row),
             ]);
             const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -556,7 +666,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
 
       <div className="flex gap-3 flex-wrap mb-4">
         <StatCard label="Total households" value={households.length} />
-        <StatCard label="Bills generated" value={billsGenerated} />
+        <StatCard label="Bills generated" value={billingRecords.length} />
         <StatCard label="Paid" value={paidCount} tone="good" />
         <StatCard label="GCash pending" value={gcashPendingCount} tone="warn" />
         <StatCard label="Cash pending" value={cashPendingCount} tone="warn" />
@@ -597,6 +707,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
           <thead>
             <tr className="bg-[#1e3a5f] text-white">
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Bill #</th>
+              <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Period</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Household</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Resident name</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Standpost #</th>
@@ -606,6 +717,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Consumed</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total Amt</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Method</th>
+              <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Date paid</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">GCash reference</th>
               <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">Status</th>
               <th className="text-center px-3 py-2 font-semibold whitespace-nowrap no-print">Action</th>
@@ -613,35 +725,34 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
           </thead>
           <tbody>
             {filteredBillingRecords.length > 0 ? (
-              filteredBillingRecords.map(({ household, record }, i) => (
+              filteredBillingRecords.map((row, i) => {
+                const { household, record } = row;
+                const latest = isLatestBill(row);
+                return (
                 <tr key={`${household.id}-${record.period}`} className={i % 2 ? "bg-slate-50" : "bg-white"}>
                   <td className="px-3 py-1.5 text-slate-500 whitespace-nowrap">BL-{String(i + 1).padStart(3, "0")}</td>
+                  <td className="px-3 py-1.5 font-medium text-slate-700 whitespace-nowrap">{record.period}</td>
                   <td className="px-3 py-1.5 font-medium text-slate-700 whitespace-nowrap">{household.id}</td>
                   <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">{household.name}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{household.standpost}</td>
                   <td className="px-3 py-1.5 text-slate-500 whitespace-nowrap">{household.meter}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.prev}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr}</td>
-                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr - record.prev}</td>
+                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{rowConsumed(row)}</td>
                   <td className="px-3 py-1.5 text-right font-semibold text-slate-800 whitespace-nowrap">{peso(record.amt)}</td>
-                  <td className="px-3 py-1.5 text-left text-slate-700 whitespace-nowrap">
-                    {household.paymentStatus === "Paid"
-                      ? household.paymentMethod === "GCash" ? "GCash" : "Cash"
-                      : household.paymentStatus === "GCash Pending"
-                      ? "GCash"
-                      : household.paymentStatus === "Cash Pending"
-                      ? "Cash"
-                      : "Pending"}
-                  </td>
+                  <td className="px-3 py-1.5 text-left text-slate-700 whitespace-nowrap">{rowMethod(row)}</td>
+                  <td className="px-3 py-1.5 text-left text-slate-500 whitespace-nowrap">{record.paid ? formatPaymentDate(record.paidDate) : "—"}</td>
                   <td className="px-3 py-1.5 text-left text-slate-700 whitespace-nowrap font-mono">
                     {household.paymentStatus === "Paid" &&
                     household.paymentMethod === "GCash" &&
-                    record.period === household.period
+                    latest
                       ? household.paymentReference || "—"
                       : "—"}
                   </td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap">
-                    {household.paymentStatus === "Paid" ? (
+                    {!latest ? (
+                      record.paid ? <Badge tone="good">Paid</Badge> : <Badge tone="bad">Unpaid</Badge>
+                    ) : household.paymentStatus === "Paid" ? (
                       <Badge tone="good">Paid</Badge>
                     ) : isOverdue(household) ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-700 text-white">
@@ -656,11 +767,20 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                     )}
                   </td>
                   <td className="px-3 py-1.5 text-center whitespace-nowrap no-print">
-                    {household.paymentStatus === "GCash Pending" ? (
+                    {!latest ? (
+                      // Payment actions only ever apply to the latest bill; an
+                      // unpaid older bill's balance is carried into it.
+                      record.paid ? (
+                        <span className="text-slate-300">—</span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">Carried to {household.period}</span>
+                      )
+                    ) : household.paymentStatus === "GCash Pending" ? (
                       <Btn
                         variant="primary"
                         onClick={() => {
-                          if (!household.paymentReference) {
+                          // Nothing to review (a PayMongo checkout): confirm directly.
+                          if (!household.paymentReference && !household.receiptImage) {
                             receiveGcashPayment(household.id);
                             return;
                           }
@@ -670,11 +790,12 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                             name: household.name,
                             amount: household.totalDue,
                             residentReference: household.paymentReference,
+                            receiptImage: household.receiptImage,
                             mode: "automatic",
                           });
                         }}
                       >
-                        {household.paymentReference ? "Verify GCash reference" : "Confirm GCash"}
+                        {household.paymentReference || household.receiptImage ? "Verify GCash payment" : "Confirm GCash"}
                       </Btn>
                     ) : household.paymentStatus === "Cash Pending" ? (
                       <Btn
@@ -689,7 +810,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                       <Btn variant="ghostMuted" onClick={() => setConfirmPay({ action: "unpaid", id: household.id, name: household.name, amt: record.amt })}>
                         Mark unpaid
                       </Btn>
-                    ) : selectedPeriodKey && record.period === selectedPeriodKey && household.paymentStatus === "Unpaid" ? (
+                    ) : household.paymentStatus === "Unpaid" ? (
                       <Btn variant="ghost" onClick={() => setConfirmPay({ action: "paid", id: household.id, name: household.name, amt: record.amt })}>
                         Mark paid
                       </Btn>
@@ -698,10 +819,11 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                     )}
                   </td>
                 </tr>
-              ))
+                );
+              })
             ) : (
               <tr>
-                <td colSpan={13} className="px-3 py-6 text-center text-slate-500">No records found for {selectedBillingMonth} {selectedBillingYear}.</td>
+                <td colSpan={15} className="px-3 py-6 text-center text-slate-500">No records found for {selectedBillingMonth} {selectedBillingYear}.</td>
               </tr>
             )}
           </tbody>
@@ -900,13 +1022,14 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
 }
 
 export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSelectedAlertId, resolveAlert, unresolveAlert }) {
-  const filters = ["All", "Unresolved", "High Flow", "Leak Detected", "No Data", "Resolved"];
+  const filters = ["All", "Unresolved", "High Flow", "Leak Detected", "No Data", "Sensor Fault", "Resolved"];
   const counts = {
     All: alerts.length,
     Unresolved: alerts.filter((a) => a.status === "Unresolved").length,
     "High Flow": alerts.filter((a) => a.type === "High Flow").length,
     "Leak Detected": alerts.filter((a) => a.type === "Leak Detected").length,
     "No Data": alerts.filter((a) => a.type === "No Sensor Data").length,
+    "Sensor Fault": alerts.filter((a) => a.type === "Sensor Fault").length,
     Resolved: alerts.filter((a) => a.status === "Resolved").length,
   };
 
@@ -950,14 +1073,14 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
       </div>
 
       <div className="flex gap-3 flex-wrap mb-4">
-        <StatCard label="Total alerts (today)" value={counts.All} accent="border-t-slate-300" />
+        <StatCard label="Total alerts" value={counts.All} accent="border-t-slate-300" />
         <StatCard label="High flow" value={counts["High Flow"]} tone="warn" accent="border-t-amber-400" />
         <StatCard label="Leak detected" value={counts["Leak Detected"]} tone="bad" accent="border-t-rose-400" />
         <StatCard label="No sensor data" value={counts["No Data"]} accent="border-t-slate-300" />
       </div>
 
       <div className="card-hover bg-white rounded-lg border border-slate-200 overflow-hidden mb-3">
-        <div className="px-4 py-2.5 text-[13px] font-semibold text-slate-700 border-b border-slate-100">Alert log — {dateStamp()}, {new Date().getFullYear()}</div>
+        <div className="px-4 py-2.5 text-[13px] font-semibold text-slate-700 border-b border-slate-100">Alert log — all alerts, newest first</div>
         <div className="overflow-x-auto">
         <table className="w-full text-[12px] min-w-[640px]">
           <thead>
@@ -1438,6 +1561,74 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
 // Shown on a household's card when the resident has filed a "forgot
 // password" request. No verification code involved — the admin types the
 // new password here and confirms it directly.
+// The email on file is where this household's account setup and password
+// reset codes are sent, so only officers can change it here (residents can
+// change their own from My Profile once signed in).
+function HouseholdEmailEditor({ household, onSave }) {
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(household.email || "");
+  const [error, setError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  async function save() {
+    setError("");
+    const email = value.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setSaving(true);
+    const result = await onSave(household.id, email);
+    setSaving(false);
+    if (!result.success) {
+      setError(result.message || "Could not save the email.");
+      return;
+    }
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-between gap-2">
+        <span>
+          Email on file:{" "}
+          {household.email ? (
+            <span className="font-medium text-slate-800">{household.email}</span>
+          ) : (
+            <span className="font-medium text-amber-600">None — this household can't receive account codes</span>
+          )}
+        </span>
+        {typeof onSave === "function" && (
+          <button
+            type="button"
+            onClick={() => { setValue(household.email || ""); setEditing(true); }}
+            className="text-xs font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0"
+          >
+            {household.email ? "Change" : "Add email"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <input
+          type="email"
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(""); }}
+          placeholder="resident@example.com"
+          className="flex-1 min-w-0 border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
+        />
+        <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
+        <Btn onClick={() => setEditing(false)} disabled={saving}>Cancel</Btn>
+      </div>
+      {error && <div className="text-[12px] text-rose-600 mt-1">{error}</div>}
+    </div>
+  );
+}
+
 function PasswordResetRequestBanner({ household, onConfirmPasswordReset, showToast }) {
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1481,6 +1672,7 @@ function PasswordResetRequestBanner({ household, onConfirmPasswordReset, showToa
 export function HouseholdsPage({
   households,
   showToast,
+  onSetHouseholdEmail,
   onResetPassword,
   onConfirmPasswordReset,
   onAddHousehold,
@@ -1679,6 +1871,7 @@ export function HouseholdsPage({
                         )}
                       </span>
                     </div>
+                    <HouseholdEmailEditor household={h} onSave={onSetHouseholdEmail} />
                     {h.password && (
                       <div className="pt-1">
                         <Btn
@@ -1917,7 +2110,7 @@ export function RecordsPage({ households, showToast }) {
       record.period,
       record.prev,
       record.curr,
-      record.curr - record.prev,
+      usedCm3(record),
       record.amt,
       record.paid ? "Paid" : "Unpaid",
     ]);
@@ -2014,7 +2207,7 @@ export function RecordsPage({ households, showToast }) {
                     <td className="px-3 py-1.5 text-slate-500 whitespace-nowrap">{record.period}</td>
                     <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.prev}</td>
                     <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr - record.prev}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{usedCm3(record)}</td>
                     <td className="px-3 py-1.5 text-right font-semibold text-slate-800 whitespace-nowrap">{peso(record.amt)}</td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       {record.paid ? <Badge tone="good">Paid</Badge> : <Badge tone="bad">Unpaid</Badge>}

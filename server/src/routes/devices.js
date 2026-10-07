@@ -108,12 +108,13 @@ function checkDeviceSilence() {
   for (const h of provisioned) {
     const minutesSince = (now - toMs(h.device_last_seen)) / 60000;
     if (minutesSince >= settings.deviceSilenceMinutes && !alerts.hasUnresolvedAlertOfType(h.id, "No Sensor Data")) {
-      alerts.createAlert(
-        h.id,
-        "No Sensor Data",
-        `Last seen ${Math.round(minutesSince)} min ago`,
-        `${settings.deviceSilenceMinutes} min silence`
-      );
+      const lastSeenLabel = `Last seen ${Math.round(minutesSince)} min ago`;
+      // A sensor that came back only briefly is the same outage, not a new
+      // one — reopen that alert instead of piling up duplicates.
+      const reopened = alerts.reopenRecentlyResolved(h.id, "No Sensor Data", settings.alertThrottleMinutes, lastSeenLabel);
+      if (!reopened) {
+        alerts.createAlert(h.id, "No Sensor Data", lastSeenLabel, `${settings.deviceSilenceMinutes} min silence`);
+      }
     }
   }
 }

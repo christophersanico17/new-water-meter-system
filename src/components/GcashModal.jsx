@@ -2,6 +2,35 @@ import React from "react";
 import { peso } from "../data";
 import gcashQrImage from "../assets/gcash-qr.jpg";
 
+// Phone photos are several MB; the receipt only needs to be readable. Scale
+// it down to at most 1600px on the long side and re-encode as JPEG, which
+// keeps the upload to a few hundred KB.
+const RECEIPT_MAX_SIDE = 1600;
+
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, RECEIPT_MAX_SIDE / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff"; // transparent PNG areas would turn black in JPEG
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Not an image"));
+    };
+    img.src = url;
+  });
+}
+
 export function GcashModal({ household, step, onConfirm, onClose }) {
   const [paymentReference, setPaymentReference] = React.useState("");
   const [receiptFile, setReceiptFile] = React.useState(null);
@@ -28,11 +57,12 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
 
     let receiptImageBase64 = null;
     if (receiptFile) {
-      receiptImageBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result);
-        reader.readAsDataURL(receiptFile);
-      });
+      try {
+        receiptImageBase64 = await shrinkImage(receiptFile);
+      } catch {
+        alert("That file couldn't be read as an image. Please choose a photo or screenshot of your receipt.");
+        return;
+      }
     }
 
     onConfirm({

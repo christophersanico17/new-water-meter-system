@@ -43,7 +43,9 @@ app.use(
 // (which would otherwise consume and re-serialize the body first).
 app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoutes);
 
-app.use(express.json());
+// Raised from the 100kb default: GCash receipt photos arrive as base64 JSON
+// (the frontend shrinks them first, but a full-size photo is still ~1 MB).
+app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
@@ -63,6 +65,7 @@ const loginLimiter = rateLimit({
 app.use("/api/resident/login", loginLimiter);
 app.use("/api/resident/google-login", loginLimiter);
 app.use("/api/resident/forgot-password", loginLimiter);
+app.use("/api/resident/setup/request-code", loginLimiter);
 app.use("/api/resident/reset-password", loginLimiter);
 app.use("/api/admin/login", loginLimiter);
 app.use("/api/admin/forgot-password", loginLimiter);

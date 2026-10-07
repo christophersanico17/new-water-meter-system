@@ -2,6 +2,7 @@ const express = require("express");
 const { db } = require("../db/database");
 const { recordAudit } = require("../utils/audit");
 const paymongo = require("../utils/paymongo");
+const { settleCarriedBalances } = require("../utils/billing");
 
 const router = express.Router();
 
@@ -64,6 +65,7 @@ router.post("/paymongo", (req, res) => {
       db.prepare(
         `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
       ).run(bill.id);
+      settleCarriedBalances(bill.id);
       recordAudit(
         { user: { email: "paymongo-webhook", staffRole: "system" } },
         "bill.gcash_webhook_confirmed",

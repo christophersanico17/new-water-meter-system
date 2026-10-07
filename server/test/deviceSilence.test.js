@@ -62,3 +62,33 @@ test("a fresh reading auto-resolves an open No Sensor Data alert for that househ
 
   assert.ok(!alerts.hasUnresolvedAlertOfType("HH-SIL-4", "No Sensor Data"));
 });
+
+test("a sensor that drops out again soon after recovering reopens its alert instead of adding a new one", () => {
+  updateAlertSettings({ deviceSilenceMinutes: 30, alertThrottleMinutes: 30 });
+  insertProvisionedHousehold("HH-SIL-5", 45);
+  devices.checkDeviceSilence();
+  alerts.autoResolve("HH-SIL-5", "No Sensor Data"); // device came back briefly...
+
+  devices.checkDeviceSilence(); // ...then went silent again
+
+  const rows = db
+    .prepare("SELECT status FROM alerts WHERE household_id = ? AND type = 'No Sensor Data'")
+    .all("HH-SIL-5");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, "Unresolved");
+});
+
+test("a dropout long after the last alert was resolved raises a new alert", () => {
+  updateAlertSettings({ deviceSilenceMinutes: 30, alertThrottleMinutes: 30 });
+  insertProvisionedHousehold("HH-SIL-6", 45);
+  devices.checkDeviceSilence();
+  alerts.autoResolve("HH-SIL-6", "No Sensor Data");
+  db.prepare("UPDATE alerts SET resolved_at = ? WHERE household_id = ?").run(sqlTime(120), "HH-SIL-6");
+
+  devices.checkDeviceSilence();
+
+  const count = db
+    .prepare("SELECT COUNT(*) AS n FROM alerts WHERE household_id = ? AND type = 'No Sensor Data'")
+    .get("HH-SIL-6").n;
+  assert.equal(count, 2);
+});

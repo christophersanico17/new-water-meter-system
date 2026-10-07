@@ -11,7 +11,7 @@ import {
   submitGcashReference, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, fetchPayments, rejectGcash,
   residentLogin, residentGoogleLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
-  createHousehold, fetchAlerts, fetchMyAlerts,
+  createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
   fetchLeakReports, resolveLeakReportApi, unresolveLeakReportApi,
   fetchDeviceStatus, provisionDevice, revokeDevice, setDeviceCalibration, liveEventsUrl,
   updateAdminProfile,
@@ -148,6 +148,7 @@ export default function WaterSystemPrototype() {
           type: a.type,
           flowRate: a.flow_rate,
           threshold: a.threshold,
+          createdAt: new Date(a.created_at.replace(" ", "T") + "Z"),
           time: new Date(a.created_at.replace(" ", "T") + "Z").toLocaleString("en-PH", {
             month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
           }),
@@ -289,6 +290,9 @@ export default function WaterSystemPrototype() {
         setAdminName(user.name || "");
         setAdminAuthenticated(true);
         setAdminPage("dashboard");
+        // The initial load ran signed out, when bills/alerts/readings are
+        // refused — reload now that the admin token can fetch them.
+        await loadFromAPI(true);
         return { success: true };
       } catch (err) {
         return { success: false, message: err.message };
@@ -337,10 +341,10 @@ export default function WaterSystemPrototype() {
     return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value) && /[^A-Za-z0-9]/.test(value);
   }
 
-  async function handleResidentLogin({ householdId, password, confirmPassword, email, firstName, lastName }) {
+  async function handleResidentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code }) {
     if (USE_API) {
       try {
-        const result = await residentLogin({ householdId, password, confirmPassword, email, firstName, lastName });
+        const result = await residentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code });
         if (result.success) {
           setActiveResidentId(householdId);
           setResidentAuthenticated(true);
@@ -386,7 +390,7 @@ export default function WaterSystemPrototype() {
   // credential = the verified ID token string from Google's Sign-In button.
   // Only available when USE_API is true, since verifying a Google token
   // requires the backend (mock mode has no way to validate it).
-  async function handleResidentGoogleLogin({ householdId, credential }) {
+  async function handleResidentGoogleLogin({ householdId, credential, password, code }) {
     if (!USE_API) {
       return {
         success: false,
@@ -394,7 +398,7 @@ export default function WaterSystemPrototype() {
       };
     }
     try {
-      const result = await residentGoogleLogin({ householdId, credential });
+      const result = await residentGoogleLogin({ householdId, credential, password, code });
       if (result.success) {
         setActiveResidentId(householdId);
         setResidentAuthenticated(true);
@@ -463,6 +467,20 @@ export default function WaterSystemPrototype() {
       return { success: true };
     } catch (err) {
       showToast("Could not set the new password: " + err.message, "warn");
+      return { success: false, message: err.message };
+    }
+  }
+
+  async function handleSetHouseholdEmail(householdId, email) {
+    if (!USE_API) {
+      return { success: false, message: "Editing emails requires the backend to be running." };
+    }
+    try {
+      await setHouseholdEmail(householdId, email);
+      await loadFromAPI(true);
+      showToast(email ? `Email on file for ${householdId} updated.` : `Email removed for ${householdId}.`, "success");
+      return { success: true };
+    } catch (err) {
       return { success: false, message: err.message };
     }
   }
@@ -568,6 +586,7 @@ export default function WaterSystemPrototype() {
           type: a.type,
           flowRate: a.flow_rate,
           threshold: a.threshold,
+          createdAt: new Date(a.created_at.replace(" ", "T") + "Z"),
           time: new Date(a.created_at.replace(" ", "T") + "Z").toLocaleString("en-PH", {
             month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
           }),
@@ -585,6 +604,13 @@ export default function WaterSystemPrototype() {
     source.addEventListener("alert_resolved", (e) => {
       const { id } = JSON.parse(e.data);
       setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Resolved" } : a)));
+    });
+
+    // A sensor that drops out again shortly after recovering reopens its
+    // existing "No Sensor Data" alert server-side instead of raising a new one.
+    source.addEventListener("alert_reopened", (e) => {
+      const { id, flowRate } = JSON.parse(e.data);
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Unresolved", flowRate } : a)));
     });
 
     // EventSource surfaces connection drops as a generic error with no
@@ -911,7 +937,6 @@ export default function WaterSystemPrototype() {
   }, [residentAuthenticated]); // eslint-disable-line
 
   const unpaidCount = households.filter((h) => h.paymentStatus === "Unpaid" || h.paymentStatus === "GCash Pending" || h.paymentStatus === "Cash Pending").length;
-  const billsGenerated = households.length;
 
   if (loading) {
     return (
@@ -936,7 +961,6 @@ export default function WaterSystemPrototype() {
           households={households}
           alerts={alerts}
           unpaidCount={unpaidCount}
-          billsGenerated={billsGenerated}
           page={adminPage}
           setPage={setAdminPage}
           adminAuthenticated={adminAuthenticated}
@@ -965,6 +989,7 @@ export default function WaterSystemPrototype() {
           onConfirmPasswordReset={handleConfirmPasswordReset}
           onGenerateBills={handleGenerateBills}
           onAddHousehold={handleAddHousehold}
+          onSetHouseholdEmail={handleSetHouseholdEmail}
           onProvisionDevice={handleProvisionDevice}
           onRevokeDevice={handleRevokeDevice}
           onSetDeviceCalibration={handleSetDeviceCalibration}

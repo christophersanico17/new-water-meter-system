@@ -86,7 +86,6 @@ export function AdminView(props) {
     households,
     alerts,
     unpaidCount,
-    billsGenerated,
     page,
     setPage,
     adminAuthenticated,
@@ -115,6 +114,7 @@ export function AdminView(props) {
     onConfirmPasswordReset,
     onGenerateBills,
     onAddHousehold,
+    onSetHouseholdEmail,
     onProvisionDevice,
     onRevokeDevice,
     onSetDeviceCalibration,
@@ -311,6 +311,8 @@ export function AdminView(props) {
               alerts={alerts}
               unpaidCount={unpaidCount}
               setPage={setPage}
+              onGenerateBills={onGenerateBills}
+              canGenerateBills={isOfficer}
             />
           )}
           {activePage === "consumption" && <ConsumptionPage households={households} />}
@@ -323,7 +325,6 @@ export function AdminView(props) {
               receiveCashPayment={receiveCashPayment}
               handleRejectGcashPayment={handleRejectGcashPayment}
               showToast={showToast}
-              billsGenerated={billsGenerated}
               unpaidCount={unpaidCount}
               onGenerateBills={onGenerateBills}
               canGenerateBills={isOfficer}
@@ -354,6 +355,7 @@ export function AdminView(props) {
               onResetPassword={onResetResidentPassword}
               onConfirmPasswordReset={onConfirmPasswordReset}
               onAddHousehold={onAddHousehold}
+              onSetHouseholdEmail={isOfficer ? onSetHouseholdEmail : undefined}
               onProvisionDevice={onProvisionDevice}
               onRevokeDevice={onRevokeDevice}
               onSetDeviceCalibration={onSetDeviceCalibration}
@@ -774,13 +776,15 @@ function AdminLoginScreen({ onAdminLogin }) {
 // FORGOT PASSWORD — two steps on one screen:
 //   1) request a reset code for an email
 //   2) enter the code + a new password
-// No email service is configured, so the code is shown directly on screen
-// instead of being emailed (the code still expires and is rate-limited
-// server-side, same as a real flow).
+// The code is emailed to the admin account's own address (or printed in the
+// server console when Gmail isn't configured) — it's never sent back to
+// this screen, or anyone could reset any admin's password.
 // ─────────────────────────────────────────────────────────────
 function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
   const [email, setEmail] = useState(initialEmail || "");
-  const [resetCode, setResetCode] = useState(null);
+  const [codeRequested, setCodeRequested] = useState(false);
+  // { delivery: "email" | "console", sentTo } from the server.
+  const [codeDelivery, setCodeDelivery] = useState(null);
   const [expiresInMinutes, setExpiresInMinutes] = useState(null);
   const [codeInput, setCodeInput] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -802,8 +806,9 @@ function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
         setError(result.message || "Could not send a reset code.");
         return;
       }
-      setResetCode(result.resetCode);
-      setCodeInput(result.resetCode);
+      setCodeRequested(true);
+      setCodeDelivery({ delivery: result.delivery, sentTo: result.sentTo });
+      setCodeInput("");
       setExpiresInMinutes(result.expiresInMinutes);
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -868,7 +873,7 @@ function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
               Reset Password
             </div>
             <div className="text-xs sm:text-sm text-slate-400 mb-5 text-center">
-              {resetCode
+              {codeRequested
                 ? "Enter the reset code and choose a new password."
                 : "Enter your admin email to get a reset code."}
             </div>
@@ -879,7 +884,7 @@ function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
               </div>
             )}
 
-            {!resetCode ? (
+            {!codeRequested ? (
               <form onSubmit={handleRequestCode}>
                 <div className="mb-5">
                   <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
@@ -914,13 +919,20 @@ function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
             ) : (
               <>
                 <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2.5 mb-4 text-xs sm:text-[13px] text-sky-800">
-                  <div className="font-semibold mb-1">
-                    No email service is configured, so here's your reset code:
-                  </div>
-                  <div className="text-2xl font-mono font-bold tracking-widest text-center py-1 text-slate-800">
-                    {resetCode}
-                  </div>
-                  <div className="text-xs sm:text-[13px] text-sky-600 text-center">
+                  {codeDelivery?.delivery === "email" ? (
+                    <>
+                      <div className="font-semibold mb-1">Check your email.</div>
+                      <div>We sent a reset code to {codeDelivery.sentTo}.</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-semibold mb-1">A reset code has been generated.</div>
+                      <div>
+                        Email isn't set up on the server yet, so it's shown in the server's console window. Ask the person who runs the server for it.
+                      </div>
+                    </>
+                  )}
+                  <div className="text-xs sm:text-[13px] text-sky-600 mt-1">
                     Valid for {expiresInMinutes} minutes.
                   </div>
                 </div>

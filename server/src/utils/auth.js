@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { db } = require("../db/database");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -12,12 +13,24 @@ function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
 
+// Tokens last 7 days, so an admin token is re-checked against the database
+// on every use: a deleted staff account loses access immediately instead of
+// at expiry, and a role change takes effect on the next request.
+const getAdminAccount = db.prepare("SELECT role FROM admin_accounts WHERE email = ?");
+
 function verifyToken(token) {
+  let payload;
   try {
-    return jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, JWT_SECRET);
   } catch (err) {
     return null;
   }
+  if (payload.role === "admin") {
+    const account = getAdminAccount.get(payload.email);
+    if (!account) return null;
+    payload.staffRole = account.role || "officer";
+  }
+  return payload;
 }
 
 // requiredRole   — "admin" | "resident" (the broad token audience)

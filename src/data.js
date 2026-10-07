@@ -38,6 +38,16 @@ export function formatDueDate(isoDate) {
   return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Bill payment dates come in two shapes: a plain "YYYY-MM-DD" (seeded data)
+// or SQLite's UTC "YYYY-MM-DD HH:MM:SS" (payments recorded by the app).
+export function formatPaymentDate(value) {
+  if (!value) return "—";
+  const str = String(value);
+  if (str.length === 10) return formatDueDate(str);
+  const d = new Date(str.replace(" ", "T") + "Z");
+  return isNaN(d) ? str : d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function dueDateForPeriod(period = currentBillingPeriod()) {
   const [month, year] = period.split(" ");
   const monthIndex = MONTH_SHORT_NAMES.indexOf(month);
@@ -78,6 +88,12 @@ export function isOverdue(household) {
 
 export function peso(n) {
   return "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// CM³ used in one billing record, rounded so float subtraction noise
+// (e.g. 24.4385 - 22 = 2.4385000000000012) never reaches the screen.
+export function usedCm3(rec) {
+  return Math.round((rec.curr - rec.prev) * 10000) / 10000;
 }
 
 export function computeBill(consumptionCm3) {

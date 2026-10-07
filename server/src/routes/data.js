@@ -7,6 +7,7 @@ const paymongo = require("../utils/paymongo");
 const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
+const { settleCarriedBalances, unsettleCarriedBalances } = require("../utils/billing");
 
 const router = express.Router();
 const QR_PAYMENT_REF_PREFIX = "QR:";
@@ -158,6 +159,28 @@ router.patch("/residents/:id", authMiddleware("resident"), (req, res) => {
   res.json({ success: true });
 });
 
+// PUT /api/residents/:id/email  (officer only) — set the household's email
+// on file, where its account setup / password reset codes are sent.
+// Body: { email } (empty string clears it)
+router.put("/residents/:id/email", authMiddleware("admin", ["officer"]), (req, res) => {
+  const household = db.prepare("SELECT id, email FROM households WHERE id = ?").get(req.params.id);
+  if (!household) return res.status(404).json({ error: "Household not found." });
+
+  const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "Enter a valid email address." });
+  }
+
+  db.prepare("UPDATE households SET email = ? WHERE id = ?").run(email || null, req.params.id);
+  recordAudit(
+    req,
+    "household.email_update",
+    req.params.id,
+    email ? `Set the email on file for ${req.params.id} to ${email}` : `Removed the email on file for ${req.params.id}`
+  );
+  res.json({ success: true });
+});
+
 // POST /api/residents/:id/reset-password  (admin only)
 // Body: { newPassword? }
 // With newPassword: sets it directly and resolves any pending forgot-password
@@ -190,8 +213,13 @@ router.post("/residents/:id/reset-password", authMiddleware("admin", ["officer"]
     return res.json({ success: true });
   }
 
+  // Also unlinks Google: a Google-linked household can't set a new password
+  // (see /resident/login), so leaving the link would block the reset.
   db.prepare(
-    "UPDATE resident_accounts SET password_hash = NULL, updated_at = datetime('now') WHERE household_id = ?"
+    `UPDATE resident_accounts
+     SET password_hash = NULL, google_sub = NULL, google_email = NULL, google_name = NULL, google_picture = NULL,
+         updated_at = datetime('now')
+     WHERE household_id = ?`
   ).run(req.params.id);
 
   recordAudit(req, "resident.reset_password", req.params.id, `Reset login password for ${req.params.id}`);
@@ -214,9 +242,9 @@ function computeBillAmount(consumptionCm3) {
 // that round-trip converts through UTC and can shift the day by one
 // depending on the server's local timezone.
 function dueDateForPeriod(period) {
-  const [month, year] = period.split(" ");
+  const [month, year, ...rest] = String(period).split(" ");
   const monthIndex = MONTH_SHORT_NAMES.indexOf(month);
-  if (monthIndex === -1 || !year) return null;
+  if (monthIndex === -1 || !/^\d{4}$/.test(year || "") || rest.length) return null;
   let dueMonth = monthIndex + 1;
   let dueYear = Number(year);
   if (dueMonth > 11) {
@@ -351,6 +379,7 @@ router.post("/bills/:id/mark-paid", authMiddleware("admin"), (req, res) => {
     `UPDATE bills SET payment_status = 'Paid', payment_method = ?, payment_ref = ?, payment_date = datetime('now')
      WHERE id = ?`
   ).run(method, method === "GCash" ? `${QR_PAYMENT_REF_PREFIX}${paymentReference}` : null, req.params.id);
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.mark_paid", bill.household_id, `Marked ${bill.period} bill Paid (${method}) for ${bill.household_id}`);
   res.json({ success: true });
@@ -365,6 +394,7 @@ router.post("/bills/:id/mark-unpaid", authMiddleware("admin"), (req, res) => {
     `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL, payment_date = NULL
      WHERE id = ?`
   ).run(req.params.id);
+  unsettleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.mark_unpaid", bill.household_id, `Reverted ${bill.period} bill to Unpaid for ${bill.household_id}`);
   res.json({ success: true });
@@ -479,6 +509,7 @@ async function syncBillWithPaymongo(req, bill) {
     db.prepare(
       `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
     ).run(bill.id);
+    settleCarriedBalances(bill.id);
     recordAudit(req, "bill.gcash_confirmed", bill.household_id, `PayMongo confirmed GCash payment for ${bill.household_id} (${bill.period})`);
   }
   return { success: true, paid, status: paid ? "Paid" : "GCash Pending" };
@@ -556,6 +587,7 @@ router.post("/bills/:id/gcash/confirm", authMiddleware("admin"), (req, res) => {
   db.prepare(
     `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
   ).run(req.params.id);
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.gcash_confirm", bill.household_id, `Manually confirmed GCash payment for ${bill.household_id} (${bill.period})`);
   res.json({ success: true });
@@ -571,7 +603,7 @@ router.post("/bills/:id/gcash/reject", authMiddleware("admin"), (req, res) => {
       return res.status(400).json({ error: "This bill is not pending GCash confirmation." });
     }
 
-    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "Payment rejected by admin";
+    const reason = (typeof req.body?.reason === "string" && req.body.reason.trim()) || "Payment rejected by admin";
 
     db.prepare(
       `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL,
@@ -623,6 +655,7 @@ router.post("/bills/:id/cash/confirm", authMiddleware("admin"), (req, res) => {
   db.prepare(
     `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
   ).run(req.params.id);
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.cash_confirm", bill.household_id, `Confirmed cash payment for ${bill.household_id} (${bill.period})`);
   res.json({ success: true });
@@ -775,7 +808,7 @@ router.get("/alerts/mine", authMiddleware("resident"), (req, res) => {
 
 router.post("/alerts/:id/resolve", authMiddleware("admin", ["officer"]), (req, res) => {
   const result = db
-    .prepare("UPDATE alerts SET status = 'Resolved' WHERE id = ?")
+    .prepare("UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now') WHERE id = ?")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "Alert not found." });
   recordAudit(req, "alert.resolve", req.params.id, `Resolved alert ${req.params.id}`);
@@ -785,7 +818,7 @@ router.post("/alerts/:id/resolve", authMiddleware("admin", ["officer"]), (req, r
 // Undo an accidental resolve — moves an alert back to Unresolved.
 router.post("/alerts/:id/unresolve", authMiddleware("admin", ["officer"]), (req, res) => {
   const result = db
-    .prepare("UPDATE alerts SET status = 'Unresolved' WHERE id = ?")
+    .prepare("UPDATE alerts SET status = 'Unresolved', resolved_at = NULL WHERE id = ?")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "Alert not found." });
   recordAudit(req, "alert.unresolve", req.params.id, `Reopened alert ${req.params.id}`);

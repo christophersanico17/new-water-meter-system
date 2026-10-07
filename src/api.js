@@ -160,10 +160,11 @@ export async function updateAdminProfile({ firstName, lastName, email, currentPa
 // Exported here so the prototype file can import them once USE_API
 // resident-login support is added.
 
-export async function residentLogin({ householdId, password, confirmPassword, email, firstName, lastName }) {
+// `code` is the emailed setup code — required when creating a password.
+export async function residentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code }) {
   const data = await request("/resident/login", {
     method: "POST",
-    body: { householdId, password, confirmPassword, email, firstName, lastName },
+    body: { householdId, password, confirmPassword, email, firstName, lastName, code },
   });
   if (data.success && data.token) {
     setToken("resident", data.token);
@@ -171,10 +172,10 @@ export async function residentLogin({ householdId, password, confirmPassword, em
   return data; // { success, message?, token?, householdId? }
 }
 
-export async function residentGoogleLogin({ householdId, credential }) {
+export async function residentGoogleLogin({ householdId, credential, password, code }) {
   const data = await request("/resident/google-login", {
     method: "POST",
-    body: { householdId, credential },
+    body: { householdId, credential, password: password || undefined, code: code || undefined },
   });
   if (data.success && data.token) {
     setToken("resident", data.token);
@@ -186,10 +187,38 @@ export async function fetchGoogleLinkStatus(householdId) {
   return request(`/resident/google-status?householdId=${encodeURIComponent(householdId)}`);
 }
 
+// Returns { success, method: "email", sentTo } when a code was emailed, or
+// { success, method: "office", message } when the office will handle it.
 export async function residentForgotPassword(householdId) {
   return request("/resident/forgot-password", {
     method: "POST",
     body: { householdId },
+  });
+}
+
+// Officer sets the email on file for a household (where its account codes
+// are sent). An empty string clears it.
+export async function setHouseholdEmail(householdId, email) {
+  return request(`/residents/${encodeURIComponent(householdId)}/email`, {
+    method: "PUT",
+    body: { email },
+    auth: "admin",
+  });
+}
+
+// Emails a first-time setup code to the household's email on file.
+export async function requestResidentSetupCode(householdId) {
+  return request("/resident/setup/request-code", {
+    method: "POST",
+    body: { householdId },
+  });
+}
+
+// Completes an emailed forgot-password reset.
+export async function residentResetPassword({ householdId, code, newPassword }) {
+  return request("/resident/reset-password", {
+    method: "POST",
+    body: { householdId, code, newPassword },
   });
 }
 

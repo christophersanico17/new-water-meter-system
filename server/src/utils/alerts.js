@@ -63,8 +63,28 @@ function autoResolve(householdId, type) {
     .prepare(`SELECT id FROM alerts WHERE household_id = ? AND type = ? AND status = 'Unresolved' LIMIT 1`)
     .get(householdId, type);
   if (!row) return;
-  db.prepare(`UPDATE alerts SET status = 'Resolved' WHERE id = ?`).run(row.id);
+  db.prepare(`UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now') WHERE id = ?`).run(row.id);
   events.broadcast("alert_resolved", { id: row.id });
+}
+
+// Reopens this household's most recent alert of `type` if it was resolved
+// within the last `withinMinutes`, updating its flow_rate label. Returns the
+// reopened alert's id, or null if there was none to reopen. Used so a sensor
+// that keeps dropping in and out produces one alert, not a new one per dropout.
+function reopenRecentlyResolved(householdId, type, withinMinutes, flowRateLabel) {
+  const row = db
+    .prepare(
+      `SELECT id FROM alerts WHERE household_id = ? AND type = ? AND status = 'Resolved'
+       AND resolved_at >= datetime('now', ?) ORDER BY resolved_at DESC LIMIT 1`
+    )
+    .get(householdId, type, `-${withinMinutes} minutes`);
+  if (!row) return null;
+  db.prepare(`UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, flow_rate = ? WHERE id = ?`).run(
+    flowRateLabel,
+    row.id
+  );
+  events.broadcast("alert_reopened", { id: row.id, flowRate: flowRateLabel });
+  return row.id;
 }
 
 module.exports = {
@@ -73,4 +93,5 @@ module.exports = {
   hasUnresolvedAlertOfType,
   createAlert,
   autoResolve,
+  reopenRecentlyResolved,
 };

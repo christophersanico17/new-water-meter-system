@@ -1,5 +1,5 @@
 import React from "react";
-import { peso, formatDueDate, dueDateForPeriod, billingDateForPeriod } from "../data";
+import { peso, formatDueDate, dueDateForPeriod, billingDateForPeriod, usedCm3 } from "../data";
 
 // Shared bill statement layout — used by the resident's "My Bills" page, the
 // admin's Bill Statements page, and the GCash payment receipt, so all three
@@ -18,7 +18,7 @@ export function BillReplica({ me, paymentStamp, period }) {
   const currentConsumed = me.history[idx];
   const prevRec = me.history[idx - 1] || currentConsumed;
   const prevConsumed = +(prevRec.curr - prevRec.prev).toFixed(0);
-  const currentCM2 = currentConsumed.curr - currentConsumed.prev;
+  const currentCM2 = usedCm3(currentConsumed);
   const currentAmt = currentConsumed.amt;
 
   // Only cycles *before* the one being viewed, and still unpaid as of now,
@@ -28,7 +28,7 @@ export function BillReplica({ me, paymentStamp, period }) {
     .slice(0, idx)
     .filter((rec) => !rec.paid)
     .map((rec) => ({
-      consumed: rec.curr - rec.prev,
+      consumed: usedCm3(rec),
       month: rec.period.split(" ")[0].toUpperCase(),
       amount: rec.amt,
     }));

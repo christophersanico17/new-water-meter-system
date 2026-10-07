@@ -6,8 +6,8 @@ import { BillReplica } from "../components/BillReplica";
 import { GcashBillingSection } from "../components/GcashBilling";
 import { ConsumptionStatusBanner } from "../components/ConsumptionStatusBanner";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
-import { peso, MIN_BILL, formatDueDate, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
-import { submitLeakReport, residentForgotPassword, fetchAnnouncements } from "../api";
+import { peso, MIN_BILL, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
+import { submitLeakReport, residentForgotPassword, residentResetPassword, requestResidentSetupCode, fetchAnnouncements } from "../api";
 import { deviceStatus, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
 
 // ─────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ export function LoginScreen({
   // Residents now type their control number (household ID off the bill) instead
   // of picking their name from a list — better privacy, matches the printed bill.
   const [controlNumber, setControlNumber] = useState(residentLoginHouseholdId || "");
-  const [email, setEmail] = useState("");
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
@@ -52,6 +52,10 @@ export function LoginScreen({
   const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  // First-time setup: the code emailed to the household's address on file.
+  const [setupCode, setSetupCode] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeSentTo, setCodeSentTo] = useState("");
 
   // null = auto-detect from the household's real password state; otherwise
   // the resident has manually switched forms via the toggle link below.
@@ -76,11 +80,37 @@ export function LoginScreen({
     { label: "A symbol", met: /[^A-Za-z0-9]/.test(password) },
   ];
 
+  async function handleSendSetupCode() {
+    setError("");
+    setInfo("");
+    if (!selected) {
+      setError("Enter your control number first (found on your water bill).");
+      return;
+    }
+    setSendingCode(true);
+    try {
+      const result = await requestResidentSetupCode(resolvedHouseholdId);
+      if (!result.success) {
+        setError(result.message || "Couldn't send the code. Please try again.");
+        return;
+      }
+      setCodeSentTo(result.sentTo || "your email on file");
+      setSetupCode("");
+    } catch (err) {
+      setError(err.message || "Couldn't send the code. Please try again.");
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
   function handleControlChange(value) {
     setControlNumber(value);
     setError("");
     setInfo("");
     setModeOverride(null);
+    // A code belongs to one household — start over if the number changes.
+    setSetupCode("");
+    setCodeSentTo("");
     const match = households.find((h) => h.id.toLowerCase() === value.trim().toLowerCase());
     if (match && typeof onResidentLoginHouseholdSelect === "function") {
       onResidentLoginHouseholdSelect(match.id);
@@ -125,6 +155,10 @@ export function LoginScreen({
         setError("Passwords do not match.");
         return;
       }
+      if (setupCode.length !== 6) {
+        setError("Tap \"Send code\", then enter the 6-digit code from your email.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -133,9 +167,9 @@ export function LoginScreen({
         householdId: resolvedHouseholdId,
         password,
         confirmPassword,
-        email: isNewPassword ? email : undefined,
         firstName: isNewPassword ? firstName : undefined,
         lastName: isNewPassword ? lastName : undefined,
+        code: isNewPassword ? setupCode : undefined,
         rememberMe,
       });
       if (!result || !result.success) {
@@ -171,7 +205,12 @@ export function LoginScreen({
     setError("");
     setGoogleSubmitting(true);
     try {
-      const result = await onResidentGoogleLogin({ householdId: resolvedHouseholdId, credential });
+      const result = await onResidentGoogleLogin({
+        householdId: resolvedHouseholdId,
+        credential,
+        password,
+        code: setupCode || undefined,
+      });
       if (!result || !result.success) {
         setError((result && result.message) || "Google sign-in failed. Please try again.");
       }
@@ -263,26 +302,6 @@ export function LoginScreen({
             {/* Email + Preferred Username — sign-up only */}
             {isNewPassword && (
               <>
-                <div className="mb-3">
-                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="email"
-                      autoComplete="off"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                      className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2.5 sm:py-3 text-base focus:outline-none focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f] transition placeholder-slate-300"
-                    />
-                  </div>
-                </div>
 
                 <div className="mb-3 grid grid-cols-2 gap-2.5">
                   <div>
@@ -455,6 +474,44 @@ export function LoginScreen({
               )}
             </div>
 
+            {isNewPassword && (
+              <>
+                {/* Emailed setup code — sent to the email the office has on
+                    file for this household, never one typed here, so a
+                    control number alone can't claim a household. */}
+                <div className="mb-3">
+                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
+                    Email Confirmation Code
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={setupCode}
+                      onChange={(e) => { setSetupCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+                      className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2.5 sm:py-3 text-base font-mono tracking-widest focus:outline-none focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f] transition placeholder-slate-300 placeholder:tracking-normal placeholder:font-sans"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendSetupCode}
+                      disabled={sendingCode}
+                      className="flex-shrink-0 border border-[#1e3a5f] text-[#1e3a5f] hover:bg-sky-50 text-xs sm:text-[13px] font-semibold px-3 rounded-lg disabled:opacity-50"
+                    >
+                      {sendingCode ? "Sending…" : codeSentTo ? "Resend code" : "Send code"}
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {codeSentTo
+                      ? `Code sent to ${codeSentTo}. It expires in 15 minutes.`
+                      : "We'll email a code to the address the water office has on file for your household."}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Confirm password — only for first-time setup */}
             {isNewPassword && (
               <div className="mb-5">
@@ -611,7 +668,13 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
   const [householdId, setHouseholdId] = useState(
     initialHouseholdId || (households[0] && households[0].id) || ""
   );
-  const [requested, setRequested] = useState(false);
+  // "select" -> "code" (code emailed; enter it + a new password)
+  //          -> "office" (no email on file; request filed for an admin)
+  const [stage, setStage] = useState("select");
+  const [sentTo, setSentTo] = useState("");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -629,13 +692,55 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
         setError(result.message || "Could not send your request.");
         return;
       }
-      setRequested(true);
+      if (result.method === "email") {
+        setSentTo(result.sentTo || "your email on file");
+        setCode("");
+        setStage("code");
+      } else {
+        setStage("office");
+      }
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
+
+  async function handleReset(e) {
+    e.preventDefault();
+    setError("");
+    if (code.length !== 6) {
+      setError("Enter the 6-digit code from your email.");
+      return;
+    }
+    if (!isStrongPassword(newPassword)) {
+      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await residentResetPassword({ householdId, code, newPassword });
+      if (!result.success) {
+        setError(result.message || "Could not reset your password.");
+        return;
+      }
+      onDone(householdId, "Password changed — sign in with your new password.");
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputCls =
+    "w-full border border-slate-300 rounded-lg px-3 py-2.5 sm:py-3 text-base focus:outline-none focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f] transition placeholder-slate-300";
+  const submitCls = `w-full text-white text-sm sm:text-base font-semibold py-2.5 sm:py-3 rounded-lg transition active:scale-[0.98] ${
+    submitting ? "bg-slate-400 cursor-not-allowed" : "bg-[#1e3a5f] hover:bg-[#16304f]"
+  }`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-8 sm:px-6 sm:py-12">
@@ -660,9 +765,11 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
               Reset Password
             </div>
             <div className="text-xs sm:text-sm text-slate-400 mb-5 text-center">
-              {requested
+              {stage === "code"
+                ? `We emailed a 6-digit code to ${sentTo}. It expires in 15 minutes.`
+                : stage === "office"
                 ? "Your request is on its way."
-                : "Select your household — an admin will set your new password and confirm it. No code needed."}
+                : "Select your household. We'll email a code to the address on file, or send your request to the water office if there isn't one."}
             </div>
 
             {error && (
@@ -671,7 +778,7 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
               </div>
             )}
 
-            {!requested ? (
+            {stage === "select" && (
               <form onSubmit={handleRequest}>
                 <div className="mb-5">
                   <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
@@ -706,22 +813,68 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
                     </div>
                   </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={`w-full text-white text-sm sm:text-base font-semibold py-2.5 sm:py-3 rounded-lg transition active:scale-[0.98] ${
-                    submitting ? "bg-slate-400 cursor-not-allowed" : "bg-[#1e3a5f] hover:bg-[#16304f]"
-                  }`}
-                >
-                  {submitting ? "Sending…" : "Send Request to Admin"}
+                <button type="submit" disabled={submitting} className={submitCls}>
+                  {submitting ? "Sending…" : "Continue"}
                 </button>
               </form>
-            ) : (
+            )}
+
+            {stage === "code" && (
+              <form onSubmit={handleReset}>
+                <div className="mb-3">
+                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">Code from your email</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+                    className={`${inputCls} font-mono tracking-widest`}
+                    placeholder="6-digit code"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">New Password</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
+                    className={inputCls}
+                    placeholder="Uppercase, lowercase, number, symbol"
+                  />
+                </div>
+                <div className="mb-5">
+                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">Confirm New Password</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
+                    className={inputCls}
+                  />
+                </div>
+                <button type="submit" disabled={submitting} className={submitCls}>
+                  {submitting ? "Saving…" : "Set New Password"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRequest}
+                  disabled={submitting}
+                  className="w-full mt-2 text-xs sm:text-[13px] text-sky-600 hover:text-sky-800 font-medium"
+                >
+                  Didn't get it? Send a new code
+                </button>
+              </form>
+            )}
+
+            {stage === "office" && (
               <div className="bg-sky-50 border border-sky-200 rounded-lg px-4 py-5 text-center">
                 <div className="text-3xl mb-2">✅</div>
                 <div className="text-sm sm:text-base font-semibold text-slate-700 mb-1">Request sent</div>
                 <div className="text-xs sm:text-[13px] text-slate-500 mb-4">
-                  An admin will set your new password and confirm it. Check back and sign in once they've done that.
+                  There's no email on file for your household, so an admin will set your new password and confirm it. Check back and sign in once they've done that.
                 </div>
                 <button
                   type="button"
@@ -832,7 +985,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
-        <StatCard label="This month (May)" value={`${me.consumption} CM³`} />
+        <StatCard label={`Usage (${me.period})`} value={`${me.consumption} CM³`} />
         <StatCard label="Amount due" value={peso(me.amount)} tone="bad" />
         <StatCard label="Previous balance" value={peso(me.prevBalance)} />
         <StatCard label="Total due" value={peso(me.totalDue)} tone="bad" />
@@ -845,7 +998,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
         </div>
         <div className="flex items-end gap-2.5 h-32">
           {me.history.map((rec, i) => {
-            const val = rec.curr - rec.prev;
+            const val = usedCm3(rec);
             const heightPct = Math.min((val / maxConsumption) * 100, 100);
             const isLast = i === me.history.length - 1;
             return (
@@ -970,7 +1123,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
           <tbody>
             {me.history.map((rec, i) => {
               const isLast = i === me.history.length - 1;
-              const status = isLast ? me.paymentStatus : "Paid";
+              const status = isLast ? me.paymentStatus : rec.paid ? "Paid" : "Unpaid";
               return (
                 <tr key={rec.period} className={i % 2 ? "bg-slate-50" : "bg-white"}>
                   <td className="px-3 py-1.5 font-medium text-slate-700">{rec.period}</td>
@@ -1015,11 +1168,11 @@ export function ResidentBills({ me, setPage, startGcashPayment }) {
         label: rec.period,
         tag: isLatest ? "Current" : null,
         dueDate: isLatest ? formatDueDate(dueDateForPeriod(rec.period)) : null,
-        paidDate: !isLatest
-          ? `${rec.period.split(" ")[0].slice(0, 3)} ${parseInt(rec.period.split(" ")[0]) || 20}, ${rec.period.split(" ")[1]}`
-          : null,
+        paidDate: rec.paid && rec.paidDate ? formatPaymentDate(rec.paidDate) : null,
         amount: rec.amt,
-        paid: !isLatest || me.paymentStatus === "Paid",
+        // The latest bill's live status (incl. pending payments) lives on
+        // `me`; older bills carry their own saved status.
+        paid: isLatest ? me.paymentStatus === "Paid" : Boolean(rec.paid),
         rec,
         consumed,
       };
@@ -1093,10 +1246,13 @@ export function ResidentBills({ me, setPage, startGcashPayment }) {
                       <div className="text-[11px] text-emerald-600 font-medium">Paid</div>
                     )}
                     {!period.tag && (
-                      <div className="text-[11px] text-slate-400">
-                        Paid on {period.label.split(" ")[0].slice(0, 3)} 20,{" "}
-                        {period.label.split(" ")[1]}
-                      </div>
+                      period.paid ? (
+                        <div className="text-[11px] text-slate-400">
+                          {period.paidDate ? `Paid on ${period.paidDate}` : "Paid"}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-rose-500 font-medium">Unpaid · added to your current bill</div>
+                      )
                     )}
                   </div>
                   <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -1355,8 +1511,15 @@ export function ResidentPayments({ me, startGcashPayment }) {
           <tbody>
             {me.history.map((rec, i) => {
               const isLast = i === me.history.length - 1;
-              const status = isLast ? me.paymentStatus : "Paid";
-              const method = isLast ? me.paymentMethod : i % 2 === 0 ? "GCash" : "Cash";
+              // Older bills show their own saved status and method, not
+              // an assumed one; only the latest carries live pending states.
+              const status = isLast ? me.paymentStatus : rec.paid ? "Paid" : "Unpaid";
+              const savedMethod = isLast ? me.paymentMethod : rec.method;
+              const method =
+                savedMethod === "GCash" ? "GCash"
+                : savedMethod === "Carried" ? "With later bill"
+                : savedMethod ? "Cash"
+                : null;
               return (
                 <tr key={rec.period} className={i % 2 ? "bg-slate-50" : "bg-white"}>
                   <td className="px-3 py-2 font-medium text-slate-700">{rec.period}</td>
@@ -1405,11 +1568,14 @@ export function ResidentPayments({ me, startGcashPayment }) {
 // ─────────────────────────────────────────────────────────────
 export function ResidentProfile({ me, onUpdateProfile }) {
   const [editing, setEditing] = useState(false);
+  // Only real values on file — never invented ones. A made-up email here
+  // would be saved on the next Save and then receive this household's
+  // password codes.
   const [formData, setFormData] = useState({
-    name: me.name,
-    address: me.address || `Purok ${me.standpost % 9 || 5} Kinamlutan, Butuan City`,
-    phone: me.phone || "(09XX) XXX-XXXX",
-    email: me.email || `${me.name.split(" ")[0].toLowerCase()}@gmail.com`,
+    name: me.name || "",
+    address: me.address || "",
+    phone: me.phone || "",
+    email: me.email || "",
   });
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1431,6 +1597,12 @@ export function ResidentProfile({ me, onUpdateProfile }) {
       }
     }
 
+    const cleanEmail = formData.email.trim();
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setError("Please enter a valid email address — password codes are sent there.");
+      return;
+    }
+
     if (typeof onUpdateProfile !== "function") {
       setEditing(false);
       setSaved(true);
@@ -1442,8 +1614,14 @@ export function ResidentProfile({ me, onUpdateProfile }) {
 
     setSaving(true);
     try {
+      // Blank fields are left unchanged rather than saved as empty text.
+      const filled = Object.fromEntries(
+        Object.entries(formData)
+          .map(([key, value]) => [key, value.trim()])
+          .filter(([, value]) => value)
+      );
       const result = await onUpdateProfile(me.id, {
-        ...formData,
+        ...filled,
         currentPassword: newPassword ? currentPassword : undefined,
         newPassword: newPassword || undefined,
       });
@@ -1523,7 +1701,9 @@ export function ResidentProfile({ me, onUpdateProfile }) {
                     className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
                   />
                 ) : (
-                  <div className="text-[13px] font-medium text-slate-800">{formData[field.key]}</div>
+                  <div className={`text-[13px] font-medium ${formData[field.key] ? "text-slate-800" : "text-slate-400"}`}>
+                    {formData[field.key] || "Not set"}
+                  </div>
                 )}
               </div>
             ))}
@@ -1647,7 +1827,7 @@ export function ResidentConsumption({ me }) {
         </div>
         <div className="flex items-end gap-3 h-32">
           {me.history.map((rec, i) => {
-            const val = rec.curr - rec.prev;
+            const val = usedCm3(rec);
             const isLast = i === me.history.length - 1;
             return (
               <div
@@ -1690,7 +1870,7 @@ export function ResidentConsumption({ me }) {
           </thead>
           <tbody>
             {me.history.map((rec, i) => {
-              const used = rec.curr - rec.prev;
+              const used = usedCm3(rec);
               const allUsed = me.history.map((r) => r.curr - r.prev);
               const avg = allUsed.reduce((s, v) => s + v, 0) / allUsed.length;
               const ratio = used / avg;
@@ -2119,7 +2299,7 @@ const FAQ = [
   },
   {
     q: "When is the billing period?",
-    a: "Bills are generated monthly. Your current billing period is the Month of May 2026. The due date is reflected on your billing statement under My Bills.",
+    a: `Bills are generated monthly. Your current billing period is the ${BILLING_PERIOD}. The due date is reflected on your billing statement under My Bills.`,
   },
   {
     q: "How do I update my contact information?",

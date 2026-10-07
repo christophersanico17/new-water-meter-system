@@ -50,6 +50,9 @@ test("resident submits a GCash QR reference for admin verification", async (t) =
   });
   assert.deepEqual(await syncResponse.json(), { success: true, paid: false, status: "GCash Pending" });
 
+  // Admin tokens are checked against admin_accounts on every request.
+  db.prepare("INSERT INTO admin_accounts (email, password_hash, role) VALUES (?, ?, 'officer')")
+    .run("admin@example.test", "unused-in-this-test");
   const adminToken = signToken({ role: "admin", email: "admin@example.test" });
   const mismatchResponse = await fetch(`http://127.0.0.1:${port}/bills/${billId}/gcash/confirm`, {
     method: "POST",

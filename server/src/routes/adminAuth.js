@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { db } = require("../db/database");
 const { signToken } = require("../utils/auth");
 const { fullName } = require("../utils/names");
+const mailer = require("../utils/mailer");
 
 const router = express.Router();
 
@@ -66,11 +67,11 @@ router.post("/login", (req, res) => {
 
 // POST /api/admin/forgot-password
 // Body: { email }
-// No email service is configured for this deployment, so the reset code is
-// returned directly in the response for the frontend to display — the same
-// "simulated delivery" pattern already used for GCash mock payments in this
-// app. A real deployment would email this code instead of returning it.
-router.post("/forgot-password", (req, res) => {
+// Emails the reset code to the admin account's own address (utils/mailer.js;
+// printed to the server console if Gmail isn't configured). It must never be
+// returned in the response: anyone can call this endpoint, so that would let
+// them reset any admin's password knowing only the email.
+router.post("/forgot-password", async (req, res) => {
   const { email } = req.body || {};
   if (!email) {
     return res.json({ success: false, message: "Email is required." });
@@ -90,7 +91,22 @@ router.post("/forgot-password", (req, res) => {
     "UPDATE admin_accounts SET reset_code_hash = ?, reset_code_expires = ? WHERE email = ?"
   ).run(hashResetCode(code), expiresAt, admin.email);
 
-  return res.json({ success: true, resetCode: code, expiresInMinutes: RESET_CODE_TTL_MS / 60000 });
+  const minutes = RESET_CODE_TTL_MS / 60000;
+  let delivery;
+  try {
+    delivery = await mailer.sendCode({
+      to: admin.email,
+      subject: "Your admin password reset code",
+      intro: "Someone asked to reset the password for your Barangay Kinamlutan Water System admin account.",
+      code,
+      minutes,
+    });
+  } catch (err) {
+    console.error("Admin reset email failed:", err.message);
+    return res.json({ success: false, message: `Couldn't send the code to ${admin.email}. Check that it's a real inbox, or ask the person who runs the server.` });
+  }
+
+  return res.json({ success: true, delivery, sentTo: mailer.maskEmail(admin.email), expiresInMinutes: minutes });
 });
 
 // POST /api/admin/reset-password

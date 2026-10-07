@@ -32,12 +32,14 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     amt: b.amount,
     paid: b.payment_status === "Paid",
     method: b.payment_method,
+    paidDate: b.payment_date,
   }));
 
   const prevCm3 = reading ? null : latestBill ? latestBill.prev_cm3 : 0;
   const currCm3 = reading ? reading.cm3 : latestBill ? latestBill.curr_cm3 : 0;
   const baselinePrev = latestBill ? latestBill.prev_cm3 : 0;
-  const consumption = latestBill ? latestBill.curr_cm3 - latestBill.prev_cm3 : 0;
+  // Rounded: float subtraction leaves noise like 2.4385000000000012.
+  const consumption = latestBill ? Math.round((latestBill.curr_cm3 - latestBill.prev_cm3) * 10000) / 10000 : 0;
   const amount = latestBill ? latestBill.amount : computeBill(0);
   const prevBalance = latestBill ? latestBill.prev_balance : 0;
   const totalDue = latestBill ? latestBill.total_due : amount;
@@ -89,6 +91,8 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     paymentReference,
     paymentRejectionReason,
     paymentStamp,
+    // The resident's GCash receipt photo (data URL), for the admin to check.
+    receiptImage: latestBill ? latestBill.receipt_image || null : null,
 
     lastFlow: reading ? reading.flow_rate : 0,
     flowType: reading ? reading.flow_type : "Normal",
