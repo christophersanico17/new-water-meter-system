@@ -8,7 +8,7 @@
 // the server console instead, so the flows still work. A code is never sent
 // back in an API response.
 
-const DEFAULT_SENDER = "watersystem.csu@gmail.com";
+const DEFAULT_SENDER = "christophersanico17@gmail.com";
 
 function isMailConfigured() {
   return Boolean(process.env.BREVO_API_KEY);
