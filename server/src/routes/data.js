@@ -293,6 +293,7 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
 
   let created = 0;
   let skipped = 0;
+  let noReading = 0;
 
   const tx = db.transaction(() => {
     for (const h of households) {
@@ -304,15 +305,22 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
         continue;
       }
 
-      const latestBill = db
-        .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
-        .get(h.id);
+      // Only bill what the meter actually recorded. A household with no
+      // reading yet gets no bill — never a made-up current reading.
       const latestReading = db
         .prepare("SELECT * FROM readings WHERE household_id = ? ORDER BY recorded_at DESC LIMIT 1")
         .get(h.id);
+      if (!latestReading) {
+        noReading++;
+        continue;
+      }
+
+      const latestBill = db
+        .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
+        .get(h.id);
 
       const prevCm3 = latestBill ? latestBill.curr_cm3 : 0;
-      const currCm3 = latestReading ? latestReading.cm3 : prevCm3;
+      const currCm3 = latestReading.cm3;
       const consumption = Math.max(currCm3 - prevCm3, 0);
       const amount = computeBillAmount(consumption);
       const prevBalance = latestBill && latestBill.payment_status !== "Paid" ? latestBill.total_due : 0;
@@ -329,8 +337,8 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
   });
   tx();
 
-  recordAudit(req, "bill.generate", period, `Generated ${created} bill(s) for ${period}${skipped ? `, skipped ${skipped} already billed` : ""}`);
-  res.json({ success: true, period, created, skipped });
+  recordAudit(req, "bill.generate", period, `Generated ${created} bill(s) for ${period}${skipped ? `, skipped ${skipped} already billed` : ""}${noReading ? `, skipped ${noReading} with no meter reading` : ""}`);
+  res.json({ success: true, period, created, skipped, noReading });
 });
 
 // GET /api/bills — admin: all bills, optionally filtered by ?householdId=.
