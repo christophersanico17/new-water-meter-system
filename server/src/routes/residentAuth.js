@@ -24,14 +24,7 @@ async function sendHouseholdCode(household, purpose, subject, intro) {
 const router = express.Router();
 
 function isStrongPassword(value) {
-  return (
-    typeof value === "string" &&
-    value.length >= 8 &&
-    /[A-Z]/.test(value) &&
-    /[a-z]/.test(value) &&
-    /[0-9]/.test(value) &&
-    /[^A-Za-z0-9]/.test(value)
-  );
+  return typeof value === "string" && value.length >= 8;
 }
 
 // POST /api/resident/setup/request-code
@@ -90,7 +83,7 @@ router.post("/login", (req, res) => {
       return res.json({
         success: false,
         message:
-          "Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol.",
+          "Password must be at least 8 characters.",
       });
     }
     if (password !== confirmPassword) {
@@ -189,7 +182,7 @@ router.post("/reset-password", (req, res) => {
   if (!isStrongPassword(newPassword)) {
     return res.json({
       success: false,
-      message: "Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol.",
+      message: "Password must be at least 8 characters.",
     });
   }
   const codeError = checkCode("resident_reset", householdId, code);

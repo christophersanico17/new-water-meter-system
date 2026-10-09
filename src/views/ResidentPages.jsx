@@ -18,13 +18,7 @@ import { deviceStatus, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
 // just enter their existing password.
 // ─────────────────────────────────────────────────────────────
 function isStrongPassword(value) {
-  return (
-    value.length >= 8 &&
-    /[A-Z]/.test(value) &&
-    /[a-z]/.test(value) &&
-    /[0-9]/.test(value) &&
-    /[^A-Za-z0-9]/.test(value)
-  );
+  return typeof value === "string" && value.length >= 8;
 }
 
 export function LoginScreen({
@@ -66,14 +60,6 @@ export function LoginScreen({
   // Default to "sign up" when nothing's matched yet (mirrors the reference).
   const autoIsNewPassword = selected ? !selected.password : true;
   const isNewPassword = modeOverride ? modeOverride === "create" : autoIsNewPassword;
-
-  const passwordChecks = [
-    { label: "8+ characters", met: password.length >= 8 },
-    { label: "Uppercase letter", met: /[A-Z]/.test(password) },
-    { label: "Lowercase letter", met: /[a-z]/.test(password) },
-    { label: "A number", met: /[0-9]/.test(password) },
-    { label: "A symbol", met: /[^A-Za-z0-9]/.test(password) },
-  ];
 
   async function handleSendSetupCode() {
     setError("");
@@ -142,7 +128,7 @@ export function LoginScreen({
       }
       if (!isStrongPassword(password)) {
         setError(
-          "Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol."
+          "Password must be at least 8 characters."
         );
         return;
       }
@@ -337,7 +323,8 @@ export function LoginScreen({
             </div>
 
             {/* Password */}
-            <div className={isNewPassword ? "mb-3" : "mb-5"}>
+            <div className={isNewPassword ? "grid grid-cols-2 gap-3 mb-3" : "mb-5"}>
+              <div>
               <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
                 {isNewPassword ? "Create Password" : "Password"}
               </label>
@@ -360,7 +347,7 @@ export function LoginScreen({
                 <input
                   type={showPassword ? "text" : "password"}
                   autoComplete={isNewPassword ? "new-password" : "current-password"}
-                  placeholder={isNewPassword ? "Create a strong password" : "Your password"}
+                  placeholder={isNewPassword ? "At least 8 characters" : "Your password"}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -396,26 +383,69 @@ export function LoginScreen({
                   )}
                 </button>
               </div>
+              {isNewPassword && <div className="text-xs text-slate-500 mt-1">At least 8 characters</div>}
+              </div>
+              {/* Confirm password — only for first-time setup */}
               {isNewPassword && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
-                  {passwordChecks.map((check) => (
-                    <div key={check.label} className="flex items-center gap-1.5">
-                      {check.met ? (
-                        <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <div className="mb-5">
+                  <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg
+                        className="w-4 h-4 text-slate-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        />
+                      </svg>
+                    </div>
+                    <input
+                      type={showConfirm ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="Re-enter your password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setError("");
+                      }}
+                      onKeyDown={handleKeyDown}
+                      className="w-full border border-slate-300 rounded-lg pl-9 pr-10 py-2.5 sm:py-3 text-base focus:outline-none focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f] transition placeholder-slate-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirm ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
                           />
                         </svg>
                       ) : (
-                        <div className="w-3.5 h-3.5 rounded-full border border-slate-300 flex-shrink-0" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
                       )}
-                      <span className={`text-xs sm:text-[13px] ${check.met ? "text-emerald-600" : "text-slate-400"}`}>
-                        {check.label}
-                      </span>
-                    </div>
-                  ))}
+                    </button>
+                  </div>
                 </div>
               )}
               {!isNewPassword && (
@@ -483,69 +513,6 @@ export function LoginScreen({
               </>
             )}
 
-            {/* Confirm password — only for first-time setup */}
-            {isNewPassword && (
-              <div className="mb-5">
-                <label className="text-xs sm:text-[13px] font-semibold text-slate-600 block mb-1.5">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-slate-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    type={showConfirm ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Re-enter your password"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      setError("");
-                    }}
-                    onKeyDown={handleKeyDown}
-                    className="w-full border border-slate-300 rounded-lg pl-9 pr-10 py-2.5 sm:py-3 text-base focus:outline-none focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f] transition placeholder-slate-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                  >
-                    {showConfirm ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                        />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Submit */}
             <button
@@ -650,7 +617,7 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
       return;
     }
     if (!isStrongPassword(newPassword)) {
-      setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol.");
+      setError("Password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -778,7 +745,7 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
                     value={newPassword}
                     onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
                     className={inputCls}
-                    placeholder="Uppercase, lowercase, number, symbol"
+                    placeholder="At least 8 characters"
                   />
                 </div>
                 <div className="mb-5">

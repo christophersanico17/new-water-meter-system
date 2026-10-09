@@ -352,7 +352,7 @@ export default function WaterSystemPrototype() {
 
   // ── Resident login (standpost/password) ───────────────────────
   function isStrongPassword(value) {
-    return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[0-9]/.test(value) && /[^A-Za-z0-9]/.test(value);
+    return value.length >= 8;
   }
 
   async function handleResidentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code }) {
@@ -381,7 +381,7 @@ export default function WaterSystemPrototype() {
       if (!isStrongPassword(password)) {
         return {
           success: false,
-          message: "Password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol.",
+          message: "Password must be at least 8 characters.",
         };
       }
       if (password !== confirmPassword) {
