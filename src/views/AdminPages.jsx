@@ -17,6 +17,10 @@ import {
   fetchAdminAccounts,
   createAdminAccount,
   deleteAdminAccount,
+  deleteHousehold,
+  fetchDeletedHouseholds,
+  restoreHousehold,
+  purgeDeletedHousehold,
 } from "../api";
 
 const MONTHS = [
@@ -1711,6 +1715,7 @@ function PasswordResetRequestBanner({ household, onConfirmPasswordReset, showToa
 export function HouseholdsPage({
   households,
   showToast,
+  onHouseholdsChanged,
   onSetHouseholdEmail,
   onResetPassword,
   onConfirmPasswordReset,
@@ -1723,6 +1728,57 @@ export function HouseholdsPage({
   const [expandedId, setExpandedId] = React.useState(null);
   const [selectedPurok, setSelectedPurok] = React.useState("All Puroks");
   const [showAddModal, setShowAddModal] = React.useState(false);
+  // "active" lists households; "trash" lists Recently deleted ones.
+  const [view, setView] = React.useState("active");
+  const [trashed, setTrashed] = React.useState([]);
+  const [trashLoaded, setTrashLoaded] = React.useState(false);
+
+  async function loadTrash() {
+    try {
+      setTrashed(await fetchDeletedHouseholds());
+    } catch (err) {
+      showToast?.("Could not load Recently deleted: " + err.message, "warn");
+    }
+    setTrashLoaded(true);
+  }
+
+  React.useEffect(() => {
+    if (view === "trash") loadTrash();
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleDeleteHousehold(h) {
+    if (!(await askConfirm(`Delete ${h.name} (${h.id})? It moves to Recently deleted and can be restored for 30 days.`))) return;
+    try {
+      await deleteHousehold(h.id);
+      setExpandedId(null);
+      showToast?.(`${h.name} moved to Recently deleted`, "success");
+      onHouseholdsChanged?.();
+    } catch (err) {
+      showToast?.("Could not delete household: " + err.message, "warn");
+    }
+  }
+
+  async function handleRestore(entry) {
+    try {
+      await restoreHousehold(entry.household_id);
+      showToast?.(`${entry.name} restored`, "success");
+      await loadTrash();
+      onHouseholdsChanged?.();
+    } catch (err) {
+      showToast?.("Could not restore: " + err.message, "warn");
+    }
+  }
+
+  async function handlePurge(entry) {
+    if (!(await askConfirm(`Permanently delete ${entry.name} (${entry.household_id})? This cannot be undone.`))) return;
+    try {
+      await purgeDeletedHousehold(entry.household_id);
+      showToast?.(`${entry.name} permanently deleted`, "success");
+      await loadTrash();
+    } catch (err) {
+      showToast?.("Could not delete: " + err.message, "warn");
+    }
+  }
 
   // DeviceStatusBadge reads Date.now() at render time, so without new data
   // arriving (a fresh reading, a page action) it would never notice a device
@@ -1751,6 +1807,62 @@ export function HouseholdsPage({
   return (
     <>
       <SectionHeader title="Household Records" sub="Connected households under the barangay water system" />
+
+      <div className="flex gap-2 mb-4" role="tablist" aria-label="Household views">
+        {[
+          { key: "active", label: `Households (${households.length})` },
+          { key: "trash", label: trashLoaded ? `Recently deleted (${trashed.length})` : "Recently deleted" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={view === tab.key}
+            onClick={() => setView(tab.key)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-md border transition ${
+              view === tab.key ? "bg-[#1e3a5f] text-white border-[#1e3a5f]" : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "trash" && (
+        <div className="space-y-2">
+          <div className="text-[12px] text-slate-500">
+            Households here can be restored for 30 days. After that they are permanently deleted.
+          </div>
+          {trashed.length === 0 ? (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-center text-slate-500">
+              Nothing in Recently deleted.
+            </div>
+          ) : (
+            trashed.map((entry) => (
+              <div
+                key={entry.household_id}
+                className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="font-semibold text-slate-800">{entry.name}</div>
+                  <div className="text-[13px] text-slate-500">
+                    Control Number: <span className="text-slate-700 font-medium">{entry.household_id}</span>
+                    {" · "}Deleted {new Date(entry.deleted_at.replace(" ", "T") + "Z").toLocaleString("en-PH")}
+                    {" · "}<span className="font-semibold text-amber-700">{entry.days_left} days left</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Btn variant="primary" onClick={() => handleRestore(entry)}>Restore</Btn>
+                  <Btn variant="outline" onClick={() => handlePurge(entry)}>Delete forever</Btn>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {view === "active" && (
+      <>
 
       <div className="mb-4 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[260px]">
@@ -1844,6 +1956,15 @@ export function HouseholdsPage({
 
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-slate-100 text-[13px] text-slate-600 space-y-2.5">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteHousehold(h)}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-800 hover:underline"
+                      >
+                        Delete household
+                      </button>
+                    </div>
                     {h.passwordResetRequested && (
                       <PasswordResetRequestBanner
                         household={h}
@@ -1945,6 +2066,8 @@ export function HouseholdsPage({
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-center text-slate-500">
           No households found for {selectedPurok}{searchTerm ? ` matching "${searchTerm}"` : ""}.
         </div>
+      )}
+      </>
       )}
     </>
   );

@@ -492,3 +492,30 @@ export function liveEventsUrl() {
   if (!token) return null;
   return `${API_BASE}/events/stream?token=${encodeURIComponent(token)}`;
 }
+
+// ── Households: delete, Recently deleted, restore ──────────────
+// Deleting moves a household to Recently deleted, where it stays 30 days.
+export async function deleteHousehold(householdId) {
+  return request(`/residents/${encodeURIComponent(householdId)}`, {
+    method: "DELETE",
+    auth: "admin",
+  });
+}
+
+export async function fetchDeletedHouseholds() {
+  return request("/deleted-residents", { auth: "admin" });
+}
+
+export async function restoreHousehold(householdId) {
+  return request(`/deleted-residents/${encodeURIComponent(householdId)}/restore`, {
+    method: "POST",
+    auth: "admin",
+  });
+}
+
+export async function purgeDeletedHousehold(householdId) {
+  return request(`/deleted-residents/${encodeURIComponent(householdId)}`, {
+    method: "DELETE",
+    auth: "admin",
+  });
+}

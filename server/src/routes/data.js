@@ -7,6 +7,7 @@ const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
 const { settleCarriedBalances, unsettleCarriedBalances } = require("../utils/billing");
+const { moveToTrash, restoreFromTrash, TRASH_DAYS } = require("../utils/trash");
 
 const router = express.Router();
 const QR_PAYMENT_REF_PREFIX = "QR:";
@@ -219,14 +220,41 @@ router.post("/residents/:id/reset-password", authMiddleware("admin", ["officer"]
   res.json({ success: true });
 });
 
-// DELETE /api/residents/:id  (officer/admin) — removes a household and everything
-// recorded for it (login, bills, readings, alerts, leak reports). Cascades via
-// the foreign keys in database.js.
+// DELETE /api/residents/:id  (officer/admin) — moves a household to Recently deleted.
+// It can be restored for 30 days, then it is erased for good (see utils/trash.js).
 router.delete("/residents/:id", authMiddleware("admin", ["officer"]), (req, res) => {
-  const household = db.prepare("SELECT id, name FROM households WHERE id = ?").get(req.params.id);
-  if (!household) return res.status(404).json({ error: "Household not found." });
-  db.prepare("DELETE FROM households WHERE id = ?").run(household.id);
-  recordAudit(req, "household.delete", household.id, `Removed household ${household.id} — ${household.name}`);
+  const name = moveToTrash(req.params.id, req.user.email || req.user.name || "admin");
+  if (name === null) return res.status(404).json({ error: "Household not found." });
+  recordAudit(req, "household.delete", req.params.id, `Moved household ${req.params.id} — ${name} to Recently deleted`);
+  res.json({ success: true });
+});
+
+// GET /api/deleted-residents  (officer/admin) — Recently deleted households.
+router.get("/deleted-residents", authMiddleware("admin", ["officer"]), (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT household_id, name, deleted_at, deleted_by,
+              MAX(0, CAST(? - (julianday('now') - julianday(deleted_at)) AS INTEGER)) AS days_left
+       FROM deleted_households
+       ORDER BY deleted_at DESC`
+    )
+    .all(TRASH_DAYS);
+  res.json(rows);
+});
+
+// POST /api/deleted-residents/:id/restore  (officer/admin)
+router.post("/deleted-residents/:id/restore", authMiddleware("admin", ["officer"]), (req, res) => {
+  const result = restoreFromTrash(req.params.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  recordAudit(req, "household.restore", req.params.id, `Restored household ${req.params.id} from Recently deleted`);
+  res.json({ success: true });
+});
+
+// DELETE /api/deleted-residents/:id  (officer/admin) — erase a trashed household now.
+router.delete("/deleted-residents/:id", authMiddleware("admin", ["officer"]), (req, res) => {
+  const result = db.prepare("DELETE FROM deleted_households WHERE household_id = ?").run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: "This household is not in Recently deleted." });
+  recordAudit(req, "household.purge", req.params.id, `Permanently deleted household ${req.params.id}`);
   res.json({ success: true });
 });
 

@@ -151,6 +151,16 @@ function initSchema() {
     -- Audit log: who did what (staff actions), for accountability
     -- across the officer / collector roles.
     -- ─────────────────────────────────────────────────────────
+    -- Recently deleted households: a snapshot of each deleted household and its
+    -- records, kept for 30 days so it can be restored (see utils/trash.js).
+    CREATE TABLE IF NOT EXISTS deleted_households (
+      household_id TEXT PRIMARY KEY,
+      name TEXT,
+      deleted_at TEXT NOT NULL,
+      deleted_by TEXT,
+      snapshot TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       actor_email TEXT,

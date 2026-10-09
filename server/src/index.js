@@ -130,3 +130,9 @@ startDiscoveryResponder(PORT);
 // inline as readings arrive, but a device that stops reporting entirely
 // never triggers that path, so it needs its own check on a timer.
 deviceRoutes.startDeviceSilenceMonitor();
+
+// Erase households that have been in Recently deleted for 30 days. Checked at
+// startup and then hourly.
+const { purgeExpired } = require("./utils/trash");
+purgeExpired();
+setInterval(purgeExpired, 60 * 60 * 1000).unref();

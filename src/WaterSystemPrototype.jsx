@@ -972,6 +972,7 @@ export default function WaterSystemPrototype() {
           onConfirmPasswordReset={handleConfirmPasswordReset}
           onGenerateBills={handleGenerateBills}
           onAddHousehold={handleAddHousehold}
+          onHouseholdsChanged={() => loadFromAPI(true)}
           onSetHouseholdEmail={handleSetHouseholdEmail}
           onProvisionDevice={handleProvisionDevice}
           onRevokeDevice={handleRevokeDevice}

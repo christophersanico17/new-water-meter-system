@@ -114,6 +114,7 @@ export function AdminView(props) {
     onConfirmPasswordReset,
     onGenerateBills,
     onAddHousehold,
+    onHouseholdsChanged,
     onSetHouseholdEmail,
     onProvisionDevice,
     onRevokeDevice,
@@ -355,6 +356,7 @@ export function AdminView(props) {
               onResetPassword={onResetResidentPassword}
               onConfirmPasswordReset={onConfirmPasswordReset}
               onAddHousehold={onAddHousehold}
+              onHouseholdsChanged={onHouseholdsChanged}
               onSetHouseholdEmail={isOfficer ? onSetHouseholdEmail : undefined}
               onProvisionDevice={onProvisionDevice}
               onRevokeDevice={onRevokeDevice}
