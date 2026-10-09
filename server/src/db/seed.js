@@ -9,7 +9,7 @@ function computeBill(consumptionCm3) {
 }
 
 const seedHouseholds = [
-  { id: "HH-001", name: "Juan dela Cruz", standpost: 25, meter: "158-SH-00013" },
+  { id: "HH-001", name: "Christopher Sanico", standpost: 25, meter: "158-SH-00013" },
   { id: "HH-002", name: "Maria Santos", standpost: 12, meter: "158-SH-00024" },
   { id: "HH-003", name: "Pedro Reyes", standpost: 7, meter: "158-SH-00031" },
   { id: "HH-004", name: "Luz Garcia", standpost: 18, meter: "158-SH-00008" },
