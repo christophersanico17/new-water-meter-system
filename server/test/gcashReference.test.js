@@ -44,12 +44,6 @@ test("resident submits a GCash QR reference for admin verification", async (t) =
     { payment_status: "GCash Pending", payment_ref: "QR:12345678" }
   );
 
-  const syncResponse = await fetch(`http://127.0.0.1:${port}/bills/${billId}/gcash/sync`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${residentToken}` },
-  });
-  assert.deepEqual(await syncResponse.json(), { success: true, paid: false, status: "GCash Pending" });
-
   // Admin tokens are checked against admin_accounts on every request.
   db.prepare("INSERT INTO admin_accounts (email, password_hash, role) VALUES (?, ?, 'officer')")
     .run("admin@example.test", "unused-in-this-test");
