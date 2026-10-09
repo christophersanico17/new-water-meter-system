@@ -29,8 +29,6 @@ Service → **Variables** → add:
 | `TRUST_PROXY` | `1` |
 | `DISCOVERY_PORT` | `0` |
 | `FRONTEND_ORIGIN` | your public URL from step 4, e.g. `https://watersystem2-production.up.railway.app` |
-| `VITE_GOOGLE_CLIENT_ID` | same as in the root `.env` (only if Google Sign-In is used) |
-| `GOOGLE_CLIENT_ID` | same as in `server/.env` (only if Google Sign-In is used) |
 | `PAYMONGO_SECRET_KEY` / `PAYMONGO_PUBLIC_KEY` / `PAYMONGO_WEBHOOK_SECRET` | same as in `server/.env` (only if GCash payments are used) |
 
 Don't set `PORT`. Railway provides it.
@@ -39,9 +37,6 @@ Don't set `PORT`. Railway provides it.
 
 Service → **Settings → Networking → Generate Domain**. Copy it into
 `FRONTEND_ORIGIN` (step 3), which triggers a redeploy.
-
-If Google Sign-In is used: Google Cloud Console → Credentials → your OAuth
-client → add this URL to **Authorized JavaScript origins**.
 
 ## 5. First login: change the demo passwords
 

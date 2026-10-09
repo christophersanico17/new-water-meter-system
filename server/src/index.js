@@ -71,7 +71,6 @@ const loginLimiter = rateLimit({
 });
 
 app.use("/api/resident/login", loginLimiter);
-app.use("/api/resident/google-login", loginLimiter);
 app.use("/api/resident/forgot-password", loginLimiter);
 app.use("/api/resident/setup/request-code", loginLimiter);
 app.use("/api/resident/reset-password", loginLimiter);

@@ -160,7 +160,7 @@ export async function updateAdminProfile({ firstName, lastName, email, currentPa
 
 // ── Resident auth ─────────────────────────────────────────────
 // These aren't in WaterSystemPrototype.jsx's import list yet, but are
-// needed to wire resident login (including Google) through the API.
+// needed to wire resident login through the API.
 // Exported here so the prototype file can import them once USE_API
 // resident-login support is added.
 
@@ -174,21 +174,6 @@ export async function residentLogin({ householdId, password, confirmPassword, em
     setToken("resident", data.token);
   }
   return data; // { success, message?, token?, householdId? }
-}
-
-export async function residentGoogleLogin({ householdId, credential, password, code }) {
-  const data = await request("/resident/google-login", {
-    method: "POST",
-    body: { householdId, credential, password: password || undefined, code: code || undefined },
-  });
-  if (data.success && data.token) {
-    setToken("resident", data.token);
-  }
-  return data; // { success, message?, token?, householdId?, googleProfile? }
-}
-
-export async function fetchGoogleLinkStatus(householdId) {
-  return request(`/resident/google-status?householdId=${encodeURIComponent(householdId)}`);
 }
 
 // Returns { success, method: "email", sentTo } when a code was emailed, or
@@ -223,14 +208,6 @@ export async function residentResetPassword({ householdId, code, newPassword }) 
   return request("/resident/reset-password", {
     method: "POST",
     body: { householdId, code, newPassword },
-  });
-}
-
-export async function unlinkGoogleAccount(householdId) {
-  return request("/resident/google-unlink", {
-    method: "POST",
-    body: { householdId },
-    auth: "resident",
   });
 }
 

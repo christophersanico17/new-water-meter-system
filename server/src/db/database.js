@@ -30,20 +30,12 @@ function initSchema() {
     );
 
     -- ─────────────────────────────────────────────────────────
-    -- Resident accounts: login credentials for a household.
-    -- A household can be claimed by either:
-    --   (a) a household password (set on first login), or
-    --   (b) a linked Google account (google_sub / google_email)
-    -- Both can coexist once a resident links Google after
-    -- already having a password, or vice versa.
+    -- Resident accounts: login credentials for a household
+    -- (a household password, set on first login).
     -- ─────────────────────────────────────────────────────────
     CREATE TABLE IF NOT EXISTS resident_accounts (
       household_id TEXT PRIMARY KEY REFERENCES households(id) ON DELETE CASCADE,
       password_hash TEXT,               -- bcrypt hash, null until first login sets one
-      google_sub TEXT UNIQUE,           -- Google's stable user id ("sub" claim)
-      google_email TEXT,
-      google_name TEXT,
-      google_picture TEXT,
       reset_code_hash TEXT,
       reset_code_expires TEXT,
       created_at TEXT DEFAULT (datetime('now')),

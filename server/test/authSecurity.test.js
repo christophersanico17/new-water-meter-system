@@ -39,24 +39,6 @@ test("admin forgot-password never returns the reset code to the caller", async (
   }
 });
 
-test("a Google-linked household can't have a password created by someone else", async (t) => {
-  db.prepare("INSERT INTO households (id, name, standpost, meter) VALUES ('HH-G1', 'Google user', 1, 'M-G1')").run();
-  db.prepare("INSERT INTO resident_accounts (household_id, google_sub, google_email) VALUES ('HH-G1', 'sub-1', 'g@example.test')").run();
-  const server = app.listen(0);
-  t.after(() => new Promise((resolve) => server.close(resolve)));
-
-  const result = await post(server, "/resident/login", {
-    householdId: "HH-G1",
-    password: "Attack3r!pass",
-    confirmPassword: "Attack3r!pass",
-    firstName: "Mal",
-    lastName: "Lory",
-  });
-
-  assert.equal(result.success, false);
-  const account = db.prepare("SELECT password_hash FROM resident_accounts WHERE household_id = 'HH-G1'").get();
-  assert.equal(account.password_hash, null);
-});
 
 test("a deleted admin account's token stops working immediately", () => {
   db.prepare("INSERT INTO admin_accounts (email, password_hash, role) VALUES (?, ?, 'collector')").run("gone@example.test", "x");

@@ -5,7 +5,6 @@ import logoImage from "../assets/brgy.jpg";
 import { BillReplica } from "../components/BillReplica";
 import { GcashBillingSection } from "../components/GcashBilling";
 import { ConsumptionStatusBanner } from "../components/ConsumptionStatusBanner";
-import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { peso, MIN_BILL, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
 import { submitLeakReport, residentForgotPassword, residentResetPassword, requestResidentSetupCode, fetchAnnouncements } from "../api";
 import { deviceStatus, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
@@ -31,10 +30,8 @@ function isStrongPassword(value) {
 export function LoginScreen({
   households,
   onResidentLogin,
-  onResidentGoogleLogin,
   residentLoginHouseholdId,
   onResidentLoginHouseholdSelect,
-  useApi,
 }) {
   const [mode, setMode] = useState("login"); // 'login' | 'forgot'
   // Residents now type their control number (household ID off the bill) instead
@@ -51,7 +48,6 @@ export function LoginScreen({
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   // First-time setup: the code emailed to the household's address on file.
   const [setupCode, setSetupCode] = useState("");
   const [sendingCode, setSendingCode] = useState(false);
@@ -70,7 +66,6 @@ export function LoginScreen({
   // Default to "sign up" when nothing's matched yet (mirrors the reference).
   const autoIsNewPassword = selected ? !selected.password : true;
   const isNewPassword = modeOverride ? modeOverride === "create" : autoIsNewPassword;
-  const googleLinked = selected ? Boolean(selected.googleLinked) : false;
 
   const passwordChecks = [
     { label: "8+ characters", met: password.length >= 8 },
@@ -194,30 +189,6 @@ export function LoginScreen({
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleGoogleCredential(credential) {
-    if (!selected) {
-      setError("Please enter your control number first, then sign in with Google.");
-      return;
-    }
-    setError("");
-    setGoogleSubmitting(true);
-    try {
-      const result = await onResidentGoogleLogin({
-        householdId: resolvedHouseholdId,
-        credential,
-        password,
-        code: setupCode || undefined,
-      });
-      if (!result || !result.success) {
-        setError((result && result.message) || "Google sign-in failed. Please try again.");
-      }
-    } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
-    } finally {
-      setGoogleSubmitting(false);
     }
   }
 
@@ -579,9 +550,9 @@ export function LoginScreen({
             {/* Submit */}
             <button
               onClick={handleLogin}
-              disabled={submitting || googleSubmitting}
+              disabled={submitting}
               className={`w-full text-white text-sm sm:text-base font-semibold py-2.5 sm:py-3 rounded-lg transition active:scale-[0.98] ${
-                submitting || googleSubmitting
+                submitting
                   ? "bg-slate-400 cursor-not-allowed"
                   : "bg-[#1e3a5f] hover:bg-[#16304f]"
               }`}
@@ -606,41 +577,6 @@ export function LoginScreen({
               </button>
             </div>
 
-            {/* Google Sign-In — only shown when API is connected */}
-            {useApi && typeof onResidentGoogleLogin === "function" && (
-              <>
-                {/* Divider */}
-                <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-xs sm:text-[13px] text-slate-400 font-medium">
-                    {googleLinked ? "or sign in with" : "or link & sign in with"}
-                  </span>
-                  <div className="flex-1 h-px bg-slate-200" />
-                </div>
-
-                {/* Google button */}
-                {googleSubmitting ? (
-                  <div className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm text-slate-500">
-                    <div className="w-4 h-4 border-2 border-slate-300 border-t-sky-600 rounded-full animate-spin" />
-                    Verifying with Google…
-                  </div>
-                ) : (
-                  <GoogleSignInButton
-                    onCredential={handleGoogleCredential}
-                    onError={(msg) => setError(msg)}
-                    disabled={submitting}
-                    text={googleLinked ? "signin_with" : "continue_with"}
-                  />
-                )}
-
-                {/* Contextual hint */}
-                <div className="text-[10px] sm:text-xs text-slate-400 text-center mt-2">
-                  {googleLinked
-                    ? `Linked to ${selected.googleEmail || "a Google account"}`
-                    : "Signing in with Google will link it to this household."}
-                </div>
-              </>
-            )}
           </div>
         </div>
 

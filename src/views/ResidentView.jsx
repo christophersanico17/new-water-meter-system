@@ -65,7 +65,6 @@ export function ResidentView({
   myAlerts,
   residentAuthenticated,
   onResidentLogin,
-  onResidentGoogleLogin,
   onResidentLogout,
   residentLoginHouseholdId,
   onResidentLoginHouseholdSelect,
@@ -82,10 +81,8 @@ export function ResidentView({
       <LoginScreen
         households={households}
         onResidentLogin={onResidentLogin}
-        onResidentGoogleLogin={onResidentGoogleLogin}
         residentLoginHouseholdId={residentLoginHouseholdId}
         onResidentLoginHouseholdSelect={onResidentLoginHouseholdSelect}
-        useApi={useApi}
       />
     );
   }

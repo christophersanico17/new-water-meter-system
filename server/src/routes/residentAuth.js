@@ -2,7 +2,6 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const { db } = require("../db/database");
 const { signToken, authMiddleware } = require("../utils/auth");
-const { verifyGoogleToken } = require("../utils/google");
 const mailer = require("../utils/mailer");
 const { issueCode, checkCode, CODE_TTL_MINUTES } = require("../utils/verificationCodes");
 
@@ -49,8 +48,8 @@ router.post("/setup/request-code", async (req, res) => {
   if (!household) {
     return res.json({ success: false, message: "We couldn't find an account with that control number." });
   }
-  const account = db.prepare("SELECT password_hash, google_sub FROM resident_accounts WHERE household_id = ?").get(householdId);
-  if (account && (account.password_hash || account.google_sub)) {
+  const account = db.prepare("SELECT password_hash FROM resident_accounts WHERE household_id = ?").get(householdId);
+  if (account && account.password_hash) {
     return res.json({ success: false, message: "This household is already set up. Sign in instead." });
   }
   if (!household.email) {
@@ -85,12 +84,6 @@ router.post("/login", (req, res) => {
     .prepare("SELECT * FROM resident_accounts WHERE household_id = ?")
     .get(householdId);
   const isNewPassword = !account || !account.password_hash;
-
-  // A household that signs in with Google has already been claimed — don't
-  // let anyone who knows the control number add a password to it.
-  if (isNewPassword && account && account.google_sub) {
-    return res.json({ success: false, message: "This household signs in with Google. Use the Google button below." });
-  }
 
   if (isNewPassword) {
     if (!isStrongPassword(password)) {
@@ -143,119 +136,6 @@ router.post("/login", (req, res) => {
 
   const token = signToken({ role: "resident", householdId });
   return res.json({ success: true, token, householdId });
-});
-
-// POST /api/resident/google-login
-// Body: { householdId, credential, password?, code? }
-// Verifies the Google ID token, then signs in a household already linked to
-// that Google account, or links it. Linking needs the same proof of ownership
-// as a password login: an unclaimed household (no password, no Google link)
-// needs the emailed setup code (/setup/request-code), one that already has a
-// password needs that password — otherwise anyone with a Google account could
-// take over any household just by typing its control number.
-router.post("/google-login", async (req, res) => {
-  const { householdId, credential, password, code } = req.body || {};
-
-  if (!householdId) {
-    return res.json({ success: false, message: "Select your household / standpost first." });
-  }
-
-  const household = db.prepare("SELECT id FROM households WHERE id = ?").get(householdId);
-  if (!household) {
-    return res.json({ success: false, message: "Unknown household / standpost." });
-  }
-
-  let profile;
-  try {
-    profile = await verifyGoogleToken(credential);
-  } catch (err) {
-    return res.json({ success: false, message: err.message });
-  }
-
-  const linkedElsewhere = db
-    .prepare("SELECT household_id FROM resident_accounts WHERE google_sub = ? AND household_id != ?")
-    .get(profile.sub, householdId);
-  if (linkedElsewhere) {
-    return res.json({
-      success: false,
-      message: "This Google account is already linked to a different household.",
-    });
-  }
-
-  const account = db
-    .prepare("SELECT household_id, password_hash, google_sub FROM resident_accounts WHERE household_id = ?")
-    .get(householdId);
-
-  const alreadyLinked = account && account.google_sub === profile.sub;
-  if (!alreadyLinked) {
-    if (account && account.google_sub) {
-      return res.json({ success: false, message: "This household is linked to a different Google account." });
-    }
-    if (account && account.password_hash) {
-      if (!password) {
-        return res.json({
-          success: false,
-          message: "This household already has a password. Type it in the password field first, then use Google to link your account.",
-        });
-      }
-      if (!bcrypt.compareSync(password, account.password_hash)) {
-        return res.json({ success: false, message: "Incorrect password." });
-      }
-    } else {
-      // Unclaimed household: same emailed code as creating a password.
-      if (!code) {
-        return res.json({
-          success: false,
-          message: "To set up this household, first get a code by email with \"Send code\", enter it, then use Google.",
-        });
-      }
-      const codeError = checkCode("resident_setup", householdId, code);
-      if (codeError) {
-        return res.json({ success: false, message: codeError });
-      }
-    }
-  }
-
-  if (account) {
-    db.prepare(
-      `UPDATE resident_accounts
-       SET google_sub = ?, google_email = ?, google_name = ?, google_picture = ?, updated_at = datetime('now')
-       WHERE household_id = ?`
-    ).run(profile.sub, profile.email, profile.name, profile.picture, householdId);
-  } else {
-    db.prepare(
-      `INSERT INTO resident_accounts (household_id, google_sub, google_email, google_name, google_picture)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(householdId, profile.sub, profile.email, profile.name, profile.picture);
-  }
-
-  const token = signToken({ role: "resident", householdId });
-  return res.json({ success: true, token, householdId, googleProfile: profile });
-});
-
-// GET /api/resident/google-status?householdId=HH-001
-router.get("/google-status", (req, res) => {
-  const { householdId } = req.query;
-  if (!householdId) return res.status(400).json({ error: "householdId query param is required." });
-
-  const account = db
-    .prepare("SELECT google_email FROM resident_accounts WHERE household_id = ?")
-    .get(householdId);
-
-  // Unauthenticated, so only whether a link exists — never the email itself.
-  res.json({ linked: Boolean(account && account.google_email) });
-});
-
-// POST /api/resident/google-unlink
-// Requires a resident-scoped token; unlinks the caller's own household only.
-router.post("/google-unlink", authMiddleware("resident"), (req, res) => {
-  db.prepare(
-    `UPDATE resident_accounts
-     SET google_sub = NULL, google_email = NULL, google_name = NULL, google_picture = NULL, updated_at = datetime('now')
-     WHERE household_id = ?`
-  ).run(req.user.householdId);
-
-  res.json({ success: true });
 });
 
 // POST /api/resident/forgot-password

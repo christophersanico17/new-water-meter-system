@@ -50,7 +50,7 @@ router.get("/residents", (req, res) => {
 
 function residentRow(h) {
   const account = db
-    .prepare("SELECT password_hash, google_email FROM resident_accounts WHERE household_id = ?")
+    .prepare("SELECT password_hash FROM resident_accounts WHERE household_id = ?")
     .get(h.id);
   return {
     resident_id: h.id,
@@ -62,7 +62,6 @@ function residentRow(h) {
     email: h.email,
     date_connected: h.date_connected,
     has_password: Boolean(account && account.password_hash),
-    google_email: account ? account.google_email : null,
     password_reset_requested: Boolean(
       db.prepare("SELECT 1 FROM password_reset_requests WHERE household_id = ? AND status = 'Pending'").get(h.id)
     ),
@@ -212,13 +211,8 @@ router.post("/residents/:id/reset-password", authMiddleware("admin", ["officer"]
     return res.json({ success: true });
   }
 
-  // Also unlinks Google: a Google-linked household can't set a new password
-  // (see /resident/login), so leaving the link would block the reset.
   db.prepare(
-    `UPDATE resident_accounts
-     SET password_hash = NULL, google_sub = NULL, google_email = NULL, google_name = NULL, google_picture = NULL,
-         updated_at = datetime('now')
-     WHERE household_id = ?`
+    "UPDATE resident_accounts SET password_hash = NULL, updated_at = datetime('now') WHERE household_id = ?"
   ).run(req.params.id);
 
   recordAudit(req, "resident.reset_password", req.params.id, `Reset login password for ${req.params.id}`);

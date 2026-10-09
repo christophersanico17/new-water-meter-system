@@ -10,7 +10,7 @@ import {
   fetchResidents, fetchBills, fetchBillingPeriods, generateBills,
   fetchReadings, fetchLatestReading,
   submitGcashReference, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, fetchPayments, rejectGcash,
-  residentLogin, residentGoogleLogin, residentLogout,
+  residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
   createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
   fetchLeakReports, resolveLeakReportApi, unresolveLeakReportApi,
@@ -290,7 +290,7 @@ export default function WaterSystemPrototype() {
     return () => clearInterval(interval);
   }, [households.length]);
 
-  // ── Admin login (Google) ─────────────────────────────────────
+  // ── Admin login ─────────────────────────────────────
   async function handleAdminLogin({ email, password, firstName, lastName }) {
     if (!email || !password || !firstName || !lastName) {
       return { success: false, message: "First name, last name, email, and password are all required." };
@@ -398,31 +398,6 @@ export default function WaterSystemPrototype() {
     setResidentAuthenticated(true);
     setResidentPage("dashboard");
     return { success: true };
-  }
-
-  // ── Resident login via Google ──────────────────────────────────
-  // credential = the verified ID token string from Google's Sign-In button.
-  // Only available when USE_API is true, since verifying a Google token
-  // requires the backend (mock mode has no way to validate it).
-  async function handleResidentGoogleLogin({ householdId, credential, password, code }) {
-    if (!USE_API) {
-      return {
-        success: false,
-        message: "Google Sign-In requires the backend to be running. Connect to the API first.",
-      };
-    }
-    try {
-      const result = await residentGoogleLogin({ householdId, credential, password, code });
-      if (result.success) {
-        setActiveResidentId(householdId);
-        setResidentAuthenticated(true);
-        setResidentPage("dashboard");
-        await loadFromAPI(true);
-      }
-      return result;
-    } catch (err) {
-      return { success: false, message: err.message };
-    }
   }
 
   function handleResidentLogout() {
@@ -1012,7 +987,6 @@ export default function WaterSystemPrototype() {
           myAlerts={myAlerts}
           residentAuthenticated={residentAuthenticated}
           onResidentLogin={handleResidentLogin}
-          onResidentGoogleLogin={handleResidentGoogleLogin}
           onResidentLogout={handleResidentLogout}
           residentLoginHouseholdId={residentLoginHouseholdId}
           onResidentLoginHouseholdSelect={setResidentLoginHouseholdId}

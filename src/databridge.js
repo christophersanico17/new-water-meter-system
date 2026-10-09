@@ -72,8 +72,6 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     email: resident.email || null,
     dateConnected: resident.date_connected,
     password: resident.has_password ? "••••••••" : null, // presence flag only; never store real password client-side
-    googleLinked: Boolean(resident.google_email),
-    googleEmail: resident.google_email || null,
 
     period,
     dueDate,
