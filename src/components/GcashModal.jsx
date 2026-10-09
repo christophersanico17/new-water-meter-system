@@ -35,6 +35,7 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
   const [paymentReference, setPaymentReference] = React.useState("");
   const [receiptFile, setReceiptFile] = React.useState(null);
   const [receiptPreview, setReceiptPreview] = React.useState(null);
+  const [formError, setFormError] = React.useState("");
   if (!household) return null;
 
   function handleReceiptChange(e) {
@@ -51,7 +52,7 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
     event.preventDefault();
     // Require at least reference OR receipt
     if (!paymentReference.trim() && !receiptFile) {
-      alert("Please enter a reference number or upload a receipt photo.");
+      setFormError("Please enter a reference number or upload a receipt photo.");
       return;
     }
 
@@ -60,10 +61,11 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
       try {
         receiptImageBase64 = await shrinkImage(receiptFile);
       } catch {
-        alert("That file couldn't be read as an image. Please choose a photo or screenshot of your receipt.");
+        setFormError("That file couldn't be read as an image. Please choose a photo or screenshot of your receipt.");
         return;
       }
     }
+    setFormError("");
 
     onConfirm({
       reference: paymentReference.trim(),
@@ -94,6 +96,11 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
               <div className="w-full text-xs text-slate-600 mb-3">
                 Scan the QR code and pay the exact amount above. Submit your payment proof by entering the reference number, uploading your receipt photo, or both.
               </div>
+              {formError && (
+                <div className="w-full mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                  {formError}
+                </div>
+              )}
               <label htmlFor="gcash-payment-reference" className="w-full text-xs font-semibold text-slate-600 mb-1">
                 GCash reference number
               </label>
@@ -104,7 +111,6 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={80}
-                required
                 autoComplete="off"
                 className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                 placeholder="Enter receipt reference"

@@ -3,6 +3,7 @@ import { buildInitialAlerts, genReading, computeBill, peso } from "./data";
 import { AdminView } from "./views/AdminView";
 import { ResidentView } from "./views/ResidentView";
 import { GcashModal } from "./components/GcashModal";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { Btn } from "./ui/atoms";
 import {
   getToken, adminLogin, adminLogout,
@@ -86,7 +87,7 @@ export default function WaterSystemPrototype() {
     notificationTimers.current[id] = setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       delete notificationTimers.current[id];
-    }, 3000);
+    }, 8000);
   }
 
   function removeNotification(id) {
@@ -1065,6 +1066,7 @@ export default function WaterSystemPrototype() {
           </div>
         );
       })()}
+      <ConfirmDialog />
       {/* Notification panel */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
         {notifications.map((notif) => (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Badge, StatCard, Btn } from "../ui/atoms";
 import { SectionHeader } from "../components/SectionHeader";
+import { askConfirm } from "../components/confirmBus";
 import { BillReplica } from "../components/BillReplica";
 import { deviceStatus, isDeviceOnline, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
 import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, peso, isOverdue, daysOverdue } from "../data";
@@ -132,7 +133,7 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage, onGene
   const anyData = withUsage.some((h) => h.hasData);
 
   async function generateBillsForPeriod() {
-    if (!window.confirm(`Generate ${periodKey} bills for all ${households.length} households?`)) return;
+    if (!(await askConfirm(`Generate ${periodKey} bills for all ${households.length} households?`))) return;
     await onGenerateBills(periodKey);
   }
   const billingRows = withUsage.filter((h) => h.hasBillData).slice(0, 6);
@@ -2533,7 +2534,7 @@ function StaffAccountsCard({ showToast, adminEmail }) {
   }
 
   async function handleDelete(accEmail) {
-    if (!window.confirm(`Remove the account for ${accEmail}? They will no longer be able to sign in.`)) return;
+    if (!(await askConfirm(`Remove the account for ${accEmail}? They will no longer be able to sign in.`))) return;
     try {
       await deleteAdminAccount(accEmail);
       load();
