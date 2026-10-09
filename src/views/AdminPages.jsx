@@ -1835,10 +1835,10 @@ export function HouseholdsPage({
                     </div>
                   </div>
                   <div className="text-[13px] text-slate-500 space-y-1">
-                    <div>Household ID: <span className="text-slate-700 font-medium">{h.id}</span></div>
+                    <div>Control Number: <span className="text-slate-700 font-medium">{h.id}</span></div>
                     <div>Purok: <span className="text-slate-700 font-medium">{householdPurok(h)}</span></div>
                     <div>Standpost #: <span className="text-slate-700 font-medium">{h.standpost}</span></div>
-                    <div>Meter #: <span className="text-slate-700 font-medium">{h.meter}</span></div>
+                    <div>Meter serial #: <span className="text-slate-700 font-medium">{h.meter}</span></div>
                   </div>
                 </button>
 
@@ -2013,7 +2013,7 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
           <p className="text-[11px] text-slate-500 -mt-1 mb-1">
-            A household ID and standpost connection will be generated automatically.
+            A control number is assigned automatically. Residents use it to sign up.
           </p>
 
           {error && (
@@ -2064,7 +2064,7 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
             </div>
             <div>
               <label className="text-[11px] font-medium text-slate-600 block mb-1">
-                Meter # <span className="text-rose-500">*</span>
+                Meter serial # <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"

@@ -1576,7 +1576,7 @@ export function ResidentProfile({ me, onUpdateProfile }) {
             </div>
             <div>
               <div className="font-bold text-slate-800">{me.name}</div>
-              <div className="text-[11px] text-slate-500">Household ID: {me.id}</div>
+              <div className="text-[11px] text-slate-500">Control Number: {me.id}</div>
               <div className="text-[11px] text-slate-500">Resident since 2024</div>
             </div>
           </div>
