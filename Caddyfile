@@ -1,5 +1,0 @@
-kinamlutanwater.duckdns.org {
-	# Caddy gets and renews the free Let's Encrypt HTTPS certificate automatically.
-	# Requests go to the Node backend, which also serves the built frontend (dist/).
-	reverse_proxy localhost:4000
-}
