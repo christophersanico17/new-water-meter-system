@@ -1952,7 +1952,8 @@ export function HouseholdsPage({
 
 function AddHouseholdModal({ onAdd, showToast, onClose }) {
   const [form, setForm] = React.useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     standpost: "",
     meter: "",
     address: "",
@@ -1970,8 +1971,8 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
     e.preventDefault();
     setError("");
 
-    if (!form.name.trim() || !form.standpost || !form.meter.trim()) {
-      setError("Full name, standpost #, and meter # are required.");
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.standpost || !form.meter.trim()) {
+      setError("First name, last name, standpost #, and meter # are required.");
       return;
     }
     const standpostNum = Number(form.standpost);
@@ -1983,7 +1984,7 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
     setSubmitting(true);
     try {
       const result = await onAdd({
-        name: form.name.trim(),
+        name: `${form.firstName.trim()} ${form.lastName.trim()}`,
         standpost: standpostNum,
         meter: form.meter.trim(),
         address: form.address.trim() || undefined,
@@ -2021,17 +2022,31 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
             </div>
           )}
 
-          <div>
-            <label className="text-[11px] font-medium text-slate-600 block mb-1">
-              Full Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setField("name", e.target.value)}
-              className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
-              placeholder="e.g., Juan dela Cruz"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">
+                First Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.firstName}
+                onChange={(e) => setField("firstName", e.target.value)}
+                className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
+                placeholder="e.g., Juan"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">
+                Last Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.lastName}
+                onChange={(e) => setField("lastName", e.target.value)}
+                className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
+                placeholder="e.g., dela Cruz"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
