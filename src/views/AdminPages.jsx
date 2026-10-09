@@ -1114,6 +1114,13 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
                 <td className="px-3 py-1.5 text-right text-slate-400">{a.time}</td>
                 <td className="px-3 py-1.5 text-center">
                   {a.status === "Unresolved" ? <Badge tone="bad">Unresolved</Badge> : <Badge tone="good">Resolved</Badge>}
+                  <div className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">
+                    {(a.statusChangedAt || a.createdAt) instanceof Date
+                      ? (a.statusChangedAt || a.createdAt).toLocaleString("en-PH", {
+                          month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                        })
+                      : ""}
+                  </div>
                 </td>
                 <td className="px-3 py-1.5">
                   {/* Same two-button layout on every row so the column lines

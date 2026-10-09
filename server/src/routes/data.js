@@ -706,7 +706,7 @@ router.get("/alerts/mine", authMiddleware("resident"), (req, res) => {
 
 router.post("/alerts/:id/resolve", authMiddleware("admin", ["officer"]), (req, res) => {
   const result = db
-    .prepare("UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now') WHERE id = ?")
+    .prepare("UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "Alert not found." });
   recordAudit(req, "alert.resolve", req.params.id, `Resolved alert ${req.params.id}`);
@@ -716,7 +716,7 @@ router.post("/alerts/:id/resolve", authMiddleware("admin", ["officer"]), (req, r
 // Undo an accidental resolve — moves an alert back to Unresolved.
 router.post("/alerts/:id/unresolve", authMiddleware("admin", ["officer"]), (req, res) => {
   const result = db
-    .prepare("UPDATE alerts SET status = 'Unresolved', resolved_at = NULL WHERE id = ?")
+    .prepare("UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now') WHERE id = ?")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "Alert not found." });
   recordAudit(req, "alert.unresolve", req.params.id, `Reopened alert ${req.params.id}`);

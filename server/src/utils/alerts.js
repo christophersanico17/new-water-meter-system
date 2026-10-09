@@ -63,7 +63,9 @@ function autoResolve(householdId, type) {
     .prepare(`SELECT id FROM alerts WHERE household_id = ? AND type = ? AND status = 'Unresolved' LIMIT 1`)
     .get(householdId, type);
   if (!row) return;
-  db.prepare(`UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now') WHERE id = ?`).run(row.id);
+  db.prepare(
+    `UPDATE alerts SET status = 'Resolved', resolved_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?`
+  ).run(row.id);
   events.broadcast("alert_resolved", { id: row.id });
 }
 
@@ -79,7 +81,9 @@ function reopenRecentlyResolved(householdId, type, withinMinutes, flowRateLabel)
     )
     .get(householdId, type, `-${withinMinutes} minutes`);
   if (!row) return null;
-  db.prepare(`UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, flow_rate = ? WHERE id = ?`).run(
+  db.prepare(
+    `UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now'), flow_rate = ? WHERE id = ?`
+  ).run(
     flowRateLabel,
     row.id
   );

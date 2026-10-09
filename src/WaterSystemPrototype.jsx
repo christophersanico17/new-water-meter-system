@@ -165,6 +165,7 @@ export default function WaterSystemPrototype() {
             month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
           }),
           status: a.status,
+          statusChangedAt: new Date((a.status_changed_at || a.created_at).replace(" ", "T") + "Z"),
         }))
       );
       // Functional updates avoid reading activeResidentId/residentLoginHouseholdId
@@ -603,6 +604,7 @@ export default function WaterSystemPrototype() {
             month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
           }),
           status: a.status,
+          statusChangedAt: new Date((a.status_changed_at || a.created_at).replace(" ", "T") + "Z"),
         },
         ...prev,
       ].slice(0, 50));
@@ -615,14 +617,14 @@ export default function WaterSystemPrototype() {
     // refresh, even though it's already resolved server-side.
     source.addEventListener("alert_resolved", (e) => {
       const { id } = JSON.parse(e.data);
-      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Resolved" } : a)));
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Resolved", statusChangedAt: new Date() } : a)));
     });
 
     // A sensor that drops out again shortly after recovering reopens its
     // existing "No Sensor Data" alert server-side instead of raising a new one.
     source.addEventListener("alert_reopened", (e) => {
       const { id, flowRate } = JSON.parse(e.data);
-      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Unresolved", flowRate } : a)));
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Unresolved", flowRate, statusChangedAt: new Date() } : a)));
     });
 
     // EventSource surfaces connection drops as a generic error with no
@@ -838,7 +840,7 @@ export default function WaterSystemPrototype() {
         return;
       }
     }
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: nextStatus } : a)));
+    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: nextStatus, statusChangedAt: new Date() } : a)));
     showToast(`Alert marked as ${nextStatus.toLowerCase()}`, "success");
   }
 

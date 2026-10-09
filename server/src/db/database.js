@@ -249,6 +249,12 @@ function initSchema() {
   if (!alertColumns.includes("resolved_at")) {
     db.exec("ALTER TABLE alerts ADD COLUMN resolved_at TEXT");
   }
+  // When the alert's status last changed (resolved OR reopened), so the
+  // dashboard can show "Resolved · Oct 9, 7:30 PM" / "Unresolved · ...".
+  // Null on alerts that have never changed status — the UI falls back to created_at.
+  if (!alertColumns.includes("status_changed_at")) {
+    db.exec("ALTER TABLE alerts ADD COLUMN status_changed_at TEXT");
+  }
 
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_households_device_key ON households(device_key) WHERE device_key IS NOT NULL");
   // Real-time detection looks up a household's readings by time range (leak
