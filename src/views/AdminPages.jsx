@@ -1690,7 +1690,7 @@ function PasswordResetRequestBanner({ household, onConfirmPasswordReset, showToa
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 space-y-2">
-      <div className="text-amber-800 font-semibold">🔔 Password reset requested</div>
+      <div className="text-amber-800 font-semibold">Password reset requested</div>
       <div className="text-amber-700">Set a new password for this resident and confirm it — no code needed.</div>
       <div className="flex items-center gap-2 flex-wrap">
         <input
@@ -1829,7 +1829,7 @@ export function HouseholdsPage({
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-semibold text-slate-800 text-base">{h.name}</div>
                     <div className="flex items-center gap-1.5">
-                      {h.passwordResetRequested && <Badge tone="warn">🔔 Password reset</Badge>}
+                      {h.passwordResetRequested && <Badge tone="warn">Password reset</Badge>}
                       {h.flowType === "High flow" && <Badge tone="bad">High Flow</Badge>}
                       <Badge tone="good">Active</Badge>
                     </div>

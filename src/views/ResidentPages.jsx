@@ -871,7 +871,6 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
 
             {stage === "office" && (
               <div className="bg-sky-50 border border-sky-200 rounded-lg px-4 py-5 text-center">
-                <div className="text-3xl mb-2">✅</div>
                 <div className="text-sm sm:text-base font-semibold text-slate-700 mb-1">Request sent</div>
                 <div className="text-xs sm:text-[13px] text-slate-500 mb-4">
                   There's no email on file for your household, so an admin will set your new password and confirm it. Check back and sign in once they've done that.
@@ -1476,9 +1475,7 @@ export function ResidentPayments({ me, startGcashPayment }) {
 
       {me.paymentStatus === "Paid" && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            ✓
-          </div>
+          <div className="w-8 h-8 rounded-full bg-emerald-500 flex-shrink-0" />
           <div>
             <div className="text-[13px] font-semibold text-emerald-800">Account is current</div>
             <div className="text-xs text-emerald-700 mt-0.5">
@@ -1648,7 +1645,7 @@ export function ResidentProfile({ me, onUpdateProfile }) {
 
       {saved && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 mb-4 text-[12px] text-emerald-800 font-medium">
-          ✓ Profile information updated successfully.
+          Profile information updated successfully.
         </div>
       )}
 
@@ -1812,7 +1809,6 @@ export function ResidentConsumption({ me }) {
 
       {status.level === "high" && (
         <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-xs text-rose-800 flex gap-2 mb-4">
-          <span>⚠</span>
           <span>
             Your usage this cycle is well above your average. If you didn't leave any taps
             running, check your pipes for possible leaks.
@@ -2119,9 +2115,7 @@ export function ResidentReportLeak({ me, useApi }) {
           <h1 className="text-xl font-bold text-slate-800">Report Leak</h1>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center max-w-md">
-          <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xl font-bold mx-auto mb-3">
-            ✓
-          </div>
+          <div className="w-12 h-12 bg-emerald-500 rounded-full mx-auto mb-3" />
           <div className="font-bold text-emerald-800 text-[15px] mb-1">Report Submitted!</div>
           <div className="text-[12px] text-emerald-700 mb-3">
             Your leak report has been sent to the barangay water office. A staff member will
@@ -2335,13 +2329,13 @@ export function HelpPage() {
         </div>
         <div className="flex flex-col gap-1 text-right text-[12px]">
           <a href="tel:09639604962" className="text-sky-300 hover:text-white font-medium">
-            📞 (963) 960-4962
+            (963) 960-4962
           </a>
           <a
             href="mailto:barangaykinamlutan@gmail.com"
             className="text-sky-300 hover:text-white font-medium"
           >
-            ✉ barangaykinamlutan@gmail.com
+            barangaykinamlutan@gmail.com
           </a>
           <div className="text-blue-300 text-[11px]">Mon–Fri, 8:00 AM – 5:00 PM</div>
         </div>

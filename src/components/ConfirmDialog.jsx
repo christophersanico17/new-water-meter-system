@@ -38,17 +38,10 @@ export function ConfirmDialog() {
         className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">
-            ?
-          </div>
-          <div className="min-w-0">
-            <h2 id="confirm-dialog-title" className="text-base font-semibold text-slate-900">
-              Please confirm
-            </h2>
-            <p className="mt-1 text-sm text-slate-600 break-words">{request.message}</p>
-          </div>
-        </div>
+        <h2 id="confirm-dialog-title" className="text-base font-semibold text-slate-900">
+          Please confirm
+        </h2>
+        <p className="mt-1 text-sm text-slate-600 break-words">{request.message}</p>
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={() => answer(false)}

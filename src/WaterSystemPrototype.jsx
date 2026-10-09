@@ -1088,7 +1088,7 @@ export default function WaterSystemPrototype() {
                 onClick={() => removeNotification(notif.id)}
                 className="text-xs opacity-60 hover:opacity-100 flex-shrink-0"
               >
-                ✕
+                Close
               </button>
             </div>
           </div>
