@@ -1971,8 +1971,8 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
     e.preventDefault();
     setError("");
 
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.standpost || !form.meter.trim()) {
-      setError("First name, last name, standpost #, and meter # are required.");
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.standpost || !form.meter.trim() || !form.address) {
+      setError("First name, last name, purok, standpost #, and meter # are required.");
       return;
     }
     const standpostNum = Number(form.standpost);
@@ -1987,7 +1987,7 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
         name: `${form.firstName.trim()} ${form.lastName.trim()}`,
         standpost: standpostNum,
         meter: form.meter.trim(),
-        address: form.address.trim() || undefined,
+        address: form.address,
         phone: form.phone.trim() || undefined,
         email: form.email.trim() || undefined,
       });
@@ -2077,14 +2077,19 @@ function AddHouseholdModal({ onAdd, showToast, onClose }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-medium text-slate-600 block mb-1">Address</label>
-            <input
-              type="text"
+            <label className="text-[11px] font-medium text-slate-600 block mb-1">
+              Purok <span className="text-rose-500">*</span>
+            </label>
+            <select
               value={form.address}
               onChange={(e) => setField("address", e.target.value)}
-              className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-sky-400"
-              placeholder="Purok, Kinamlutan, Butuan City"
-            />
+              className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-[12px] bg-white focus:outline-none focus:border-sky-400"
+            >
+              <option value="">Select purok</option>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={`Purok ${n}, Kinamlutan, Butuan City`}>Purok {n}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
