@@ -676,9 +676,7 @@ export default function WaterSystemPrototype() {
 
   // ── Mark paid ────────────────────────────────────────────────
   // paymentMethod is whichever the admin picked in the confirm modal —
-  // "Offline" (cash, received in person) or "GCash" (recorded manually,
-  // e.g. the resident paid but staff confirmed it by other means rather
-  // than through the automatic PayMongo flow).
+  // "Offline" (cash, received in person) or "GCash" (QR code confirmed by admin).
   async function markPaid(id, paymentMethod = "Offline", paymentStamp, paymentReference) {
     if (USE_API) {
       try {
@@ -893,20 +891,17 @@ export default function WaterSystemPrototype() {
     }
   }
 
-  // Re-checks a pending PayMongo payment and marks it Paid if confirmed.
-  // Used both by the automatic post-checkout return (below) and by a manual
-  // "Check payment status" button, for cases like the resident closing the
-  // PayMongo tab before the redirect completes. Resolves the bill by
-  // household id server-side, so it works even before bill data is loaded.
+  // Resolves the current bill's payment status by household id server-side.
+  // Works even before bill data is loaded.
   async function syncPendingPayment(householdId, { silent = false } = {}) {
     if (!USE_API || !householdId) return;
     try {
       const result = await syncGcashByHousehold(householdId, "resident");
       if (result.paid) {
         await loadFromAPI(true);
-        showToast("Payment confirmed by PayMongo — thank you!", "success");
+        showToast("Payment confirmed — thank you!", "success");
       } else if (!silent) {
-        showToast("PayMongo hasn't confirmed this payment yet. Try again in a moment.", "info");
+        showToast("Payment is still pending confirmation. Try again in a moment.", "info");
       }
       return result;
     } catch (err) {
@@ -914,9 +909,7 @@ export default function WaterSystemPrototype() {
     }
   }
 
-  // Resident returns here after PayMongo checkout (success_url/cancel_url —
-  // see server/src/routes/data.js). Sync immediately so the UI reflects the
-  // real payment status without the resident needing to do anything.
+  // Check for payment status after leaving the payment page.
   useEffect(() => {
     if (!USE_API || !residentAuthenticated) return;
     const params = new URLSearchParams(window.location.search);

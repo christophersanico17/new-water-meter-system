@@ -3,7 +3,6 @@ const bcrypt = require("bcryptjs");
 const { db } = require("../db/database");
 const { authMiddleware, optionalAuth } = require("../utils/auth");
 const { recordAudit } = require("../utils/audit");
-const paymongo = require("../utils/paymongo");
 const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
@@ -401,12 +400,10 @@ router.post("/bills/:id/mark-unpaid", authMiddleware("admin"), (req, res) => {
 });
 
 // POST /api/bills/:id/gcash/initiate — resident starts a GCash payment.
-// Creates a real PayMongo Checkout Session (test mode, unless live keys are
-// configured) and returns its hosted checkout_url. The bill is marked
-// "GCash Pending" immediately so the UI reflects the in-progress payment,
-// but it's only ever flipped to "Paid" once we've verified with PayMongo
-// (via /gcash/sync or the webhook) — never just because the client says so.
-router.post("/bills/:id/gcash/initiate", authMiddleware("resident"), async (req, res) => {
+// Marks the bill as "GCash Pending" to indicate they intend to pay via GCash QR code.
+// The bill is only ever flipped to "Paid" once an admin confirms it via /gcash/confirm
+// after the resident submits payment proof.
+router.post("/bills/:id/gcash/initiate", authMiddleware("resident"), (req, res) => {
   const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
   if (!bill) return res.status(404).json({ error: "Bill not found." });
   if (bill.household_id !== req.user.householdId) {
@@ -415,39 +412,14 @@ router.post("/bills/:id/gcash/initiate", authMiddleware("resident"), async (req,
   if (bill.payment_status === "Paid") {
     return res.status(400).json({ error: "This bill is already paid." });
   }
-  if (bill.total_due < 20) {
-    return res.status(400).json({ error: "PayMongo requires a minimum amount of ₱20.00." });
-  }
 
-  const frontendOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+  db.prepare(
+    `UPDATE bills SET payment_status = 'GCash Pending', payment_method = 'GCash'
+     WHERE id = ?`
+  ).run(req.params.id);
 
-  try {
-    const session = await paymongo.createCheckoutSession({
-      amountPesos: bill.total_due,
-      description: `Water bill — ${bill.household_id} — ${bill.period}`,
-      referenceNumber: `BILL-${bill.id}`,
-      successUrl: `${frontendOrigin}/resident?paidHousehold=${encodeURIComponent(bill.household_id)}`,
-      cancelUrl: `${frontendOrigin}/resident?cancelledHousehold=${encodeURIComponent(bill.household_id)}`,
-      metadata: { billId: String(bill.id), householdId: bill.household_id, period: bill.period },
-    });
-
-    const sessionId = session?.data?.id;
-    const checkoutUrl = session?.data?.attributes?.checkout_url;
-    if (!sessionId || !checkoutUrl) {
-      throw new Error("PayMongo did not return a checkout session.");
-    }
-
-    db.prepare(
-      `UPDATE bills SET payment_status = 'GCash Pending', payment_method = 'GCash', payment_ref = ?
-       WHERE id = ?`
-    ).run(sessionId, req.params.id);
-
-    recordAudit(req, "bill.gcash_initiate", bill.household_id, `Started PayMongo checkout for ${bill.household_id} (${bill.period})`);
-    res.json({ success: true, ref: sessionId, checkout_url: checkoutUrl });
-  } catch (err) {
-    console.error("PayMongo checkout session error:", err.message, err.paymongo || "");
-    res.status(502).json({ error: "Could not start PayMongo checkout: " + err.message });
-  }
+  recordAudit(req, "bill.gcash_initiate", bill.household_id, `Started GCash QR payment for ${bill.household_id} (${bill.period})`);
+  res.json({ success: true, status: "GCash Pending" });
 });
 
 // POST /api/bills/:id/gcash/reference — resident submits GCash payment proof
@@ -489,83 +461,9 @@ router.post("/bills/:id/gcash/reference", authMiddleware("resident"), (req, res)
   res.json({ success: true, status: "GCash Pending" });
 });
 
-// Shared by both sync routes below: re-checks one bill against PayMongo and
-// marks it Paid if confirmed. `bill` must already be access-checked by the
-// caller. Returns the { success, paid, status } payload to send as JSON.
-async function syncBillWithPaymongo(req, bill) {
-  if (bill.payment_status === "Paid") {
-    return { success: true, paid: true, status: "Paid" };
-  }
-  if (bill.payment_status !== "GCash Pending" || !bill.payment_ref) {
-    return { success: true, paid: false, status: bill.payment_status };
-  }
-  if (bill.payment_ref.startsWith(QR_PAYMENT_REF_PREFIX)) {
-    return { success: true, paid: false, status: "GCash Pending" };
-  }
 
-  const session = await paymongo.retrieveCheckoutSession(bill.payment_ref);
-  const paid = paymongo.isCheckoutSessionPaid(session);
-  if (paid) {
-    db.prepare(
-      `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
-    ).run(bill.id);
-    settleCarriedBalances(bill.id);
-    recordAudit(req, "bill.gcash_confirmed", bill.household_id, `PayMongo confirmed GCash payment for ${bill.household_id} (${bill.period})`);
-  }
-  return { success: true, paid, status: paid ? "Paid" : "GCash Pending" };
-}
-
-// POST /api/bills/:id/gcash/sync — re-check a pending payment against PayMongo
-// and mark the bill Paid if PayMongo confirms it. Callable by the resident
-// who owns the bill or by an admin. This is the primary confirmation path in
-// environments without a public webhook URL (e.g. local development).
-router.post("/bills/:id/gcash/sync", authMiddleware(), async (req, res) => {
-  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
-  if (!bill) return res.status(404).json({ error: "Bill not found." });
-
-  const isOwner = req.user.role === "resident" && req.user.householdId === bill.household_id;
-  const isAdmin = req.user.role === "admin";
-  if (!isOwner && !isAdmin) {
-    return res.status(403).json({ error: "You do not have access to this bill." });
-  }
-
-  try {
-    res.json(await syncBillWithPaymongo(req, bill));
-  } catch (err) {
-    console.error("PayMongo sync error:", err.message, err.paymongo || "");
-    res.status(502).json({ error: "Could not check payment status with PayMongo: " + err.message });
-  }
-});
-
-// POST /api/households/:householdId/gcash/sync — same as above, but resolves
-// the household's current bill server-side. Used right after the PayMongo
-// checkout redirect, when the frontend only has the household id in the URL
-// and may not have the bill data loaded yet.
-router.post("/households/:householdId/gcash/sync", authMiddleware(), async (req, res) => {
-  const { householdId } = req.params;
-  const isOwner = req.user.role === "resident" && req.user.householdId === householdId;
-  const isAdmin = req.user.role === "admin";
-  if (!isOwner && !isAdmin) {
-    return res.status(403).json({ error: "You do not have access to this household." });
-  }
-
-  const bill = db
-    .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
-    .get(householdId);
-  if (!bill) return res.json({ success: true, paid: false, status: "No bill" });
-
-  try {
-    res.json(await syncBillWithPaymongo(req, bill));
-  } catch (err) {
-    console.error("PayMongo sync error:", err.message, err.paymongo || "");
-    res.status(502).json({ error: "Could not check payment status with PayMongo: " + err.message });
-  }
-});
-
-// POST /api/bills/:id/gcash/confirm  (admin only) — manual override to confirm
-// a pending GCash payment without waiting on PayMongo (e.g. the resident paid
-// but a webhook was missed, or staff confirmed the payment by other means).
-// Prefer /gcash/sync where possible since it verifies with PayMongo directly.
+// POST /api/bills/:id/gcash/confirm  (admin only) — confirm a pending GCash payment
+// after verifying the resident's payment proof (reference number and/or receipt image).
 router.post("/bills/:id/gcash/confirm", authMiddleware("admin"), (req, res) => {
   const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
   if (!bill) return res.status(404).json({ error: "Bill not found." });

@@ -355,9 +355,9 @@ export async function confirmCash(billId) {
   });
 }
 
-// Re-checks a pending GCash (PayMongo) payment and marks it Paid if PayMongo
-// confirms it. Callable by the resident who owns the bill or by an admin —
-// `auth` is picked per-caller since this module doesn't know which is signed in.
+// Note: GCash payments are now confirmed via admin verification after the resident
+// submits payment proof (reference number and/or receipt image). The sync endpoints
+// below are deprecated but kept for backwards compatibility if needed.
 export async function syncGcash(billId, auth) {
   return request(`/bills/${billId}/gcash/sync`, {
     method: "POST",
@@ -365,9 +365,6 @@ export async function syncGcash(billId, auth) {
   });
 }
 
-// Same as syncGcash, but resolves the household's current bill server-side —
-// used right after the PayMongo checkout redirect, before bill data has
-// necessarily been (re)loaded on this page.
 export async function syncGcashByHousehold(householdId, auth) {
   return request(`/households/${encodeURIComponent(householdId)}/gcash/sync`, {
     method: "POST",

@@ -779,7 +779,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                       <Btn
                         variant="primary"
                         onClick={() => {
-                          // Nothing to review (a PayMongo checkout): confirm directly.
+                          // No payment proof submitted yet: show empty form.
                           if (!household.paymentReference && !household.receiptImage) {
                             receiveGcashPayment(household.id);
                             return;
