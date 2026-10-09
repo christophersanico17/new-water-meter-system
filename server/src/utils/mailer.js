@@ -1,25 +1,17 @@
-// Sends confirmation-code emails through the system Gmail account
-// (GMAIL_USER / GMAIL_APP_PASSWORD in server/.env — see .env.example).
+// Sends confirmation-code emails through Brevo's web API (BREVO_API_KEY in the
+// environment; BREVO_SENDER_EMAIL must be a sender verified in Brevo).
 //
-// When those aren't set (e.g. local development), codes are printed to the
-// server console instead, so the flows still work for whoever runs the
-// server. A code is never sent back in an API response.
-const nodemailer = require("nodemailer");
+// Brevo is used over HTTPS rather than SMTP, because some hosts (Railway
+// included) block outbound SMTP connections.
+//
+// When BREVO_API_KEY isn't set (e.g. local development), codes are printed to
+// the server console instead, so the flows still work. A code is never sent
+// back in an API response.
 
-let transporter = null;
+const DEFAULT_SENDER = "watersystem.csu@gmail.com";
 
 function isMailConfigured() {
-  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
-}
-
-function getTransport() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
-  }
-  return transporter;
+  return Boolean(process.env.BREVO_API_KEY);
 }
 
 // "christopher@gmail.com" -> "ch*********@gmail.com", so a screen can say
@@ -32,7 +24,7 @@ function maskEmail(email) {
 }
 
 // Delivers `code` to `to`. Returns "email" or "console" (how it went out).
-// Throws if Gmail is configured but sending fails.
+// Throws if Brevo is configured but sending fails.
 async function sendCode({ to, subject, intro, code, minutes }) {
   if (!isMailConfigured()) {
     console.log(`\n  [email not configured] ${subject} for ${to}: ${code} (valid ${minutes} min)\n`);
@@ -47,15 +39,30 @@ async function sendCode({ to, subject, intro, code, minutes }) {
     "",
     "— Barangay Kinamlutan Water System",
   ].join("\n");
-  await module.exports.transport().sendMail({
-    from: `"Barangay Kinamlutan Water System" <${process.env.GMAIL_USER}>`,
-    to,
-    subject,
-    text,
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: "Barangay Kinamlutan Water System",
+        email: process.env.BREVO_SENDER_EMAIL || DEFAULT_SENDER,
+      },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+    }),
+    signal: AbortSignal.timeout(15000),
   });
+  if (!res.ok) {
+    // Never include the key; Brevo's message is enough to diagnose a bad sender or key.
+    throw new Error(`Brevo returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
   return "email";
 }
 
-// `transport` is exported as a function (not called directly above) so tests
-// can swap in a fake one.
-module.exports = { sendCode, maskEmail, isMailConfigured, transport: getTransport };
+module.exports = { sendCode, maskEmail, isMailConfigured };
