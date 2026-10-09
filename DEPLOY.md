@@ -38,11 +38,12 @@ Don't set `PORT`. Railway provides it.
 Service → **Settings → Networking → Generate Domain**. Copy it into
 `FRONTEND_ORIGIN` (step 3), which triggers a redeploy.
 
-## 5. First login: change the demo passwords
+## 5. First login: change the admin password
 
-The first boot seeds the demo data (`server/src/db/seed.js`), including
-`admin@barangay.local` / `admin12345` and `collector@barangay.local` /
-`collector123`. The site is public now, so change both passwords right away.
+The first boot creates the admin account (`admin@barangay.local`, from
+`server/src/db/seed.js`) with a default password. The site is public now, so
+change it right away. No demo households are created: add real households from
+the admin panel.
 
 ## 6. Point the meters at it
 

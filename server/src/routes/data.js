@@ -219,6 +219,17 @@ router.post("/residents/:id/reset-password", authMiddleware("admin", ["officer"]
   res.json({ success: true });
 });
 
+// DELETE /api/residents/:id  (officer/admin) — removes a household and everything
+// recorded for it (login, bills, readings, alerts, leak reports). Cascades via
+// the foreign keys in database.js.
+router.delete("/residents/:id", authMiddleware("admin", ["officer"]), (req, res) => {
+  const household = db.prepare("SELECT id, name FROM households WHERE id = ?").get(req.params.id);
+  if (!household) return res.status(404).json({ error: "Household not found." });
+  db.prepare("DELETE FROM households WHERE id = ?").run(household.id);
+  recordAudit(req, "household.delete", household.id, `Removed household ${household.id} — ${household.name}`);
+  res.json({ success: true });
+});
+
 // ───────────────────────────────────────────────────────────
 // Bills
 // ───────────────────────────────────────────────────────────
