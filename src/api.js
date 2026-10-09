@@ -4,7 +4,11 @@
 // Dev: Vite on :5173 talks to the API on :4000. Production build: the
 // frontend is served by the API server itself (server/src/index.js), so the
 // API is same-origin at /api — works unchanged on whatever domain it's hosted.
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http://localhost:4000/api" : "/api");
+// In dev, use the same host the page was opened from (localhost on this PC, or
+// the laptop's LAN IP when opened from another device) with the API port 4000.
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (import.meta.env.DEV ? `http://${window.location.hostname}:4000/api` : "/api");
 
 // Admin and resident sessions are independent — each gets its own storage
 // key so logging into one (e.g. in another tab) can't overwrite the other's

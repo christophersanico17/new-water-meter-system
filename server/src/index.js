@@ -31,9 +31,17 @@ if (process.env.TRUST_PROXY) {
   app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
 }
 
+// Allow the Vite dev server on this PC (localhost) and on any private LAN
+// address (e.g. http://192.168.x.x:5173), so other devices on the office WiFi
+// can use the app. FRONTEND_ORIGIN still works for an exact production origin.
+const LAN_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}):5173$/;
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (origin === process.env.FRONTEND_ORIGIN || LAN_ORIGIN.test(origin)) return callback(null, true);
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
