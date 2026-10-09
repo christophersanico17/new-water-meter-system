@@ -1030,7 +1030,7 @@ export default function WaterSystemPrototype() {
         const alert = alerts.find((a) => a.id === confirmAlert.id);
         if (!alert) return null;
         const resolving = confirmAlert.action === "resolve";
-        const verb = resolving ? "Resolve" : "Unresolve";
+        const verb = resolving ? "Resolve" : "Reopen";
         return (
           <div
             className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -1047,7 +1047,7 @@ export default function WaterSystemPrototype() {
                 <p className="mb-4">
                   Mark alert <span className="font-semibold text-slate-800">{alert.id}</span> for{" "}
                   <span className="font-semibold text-slate-800">{alert.householdId} — {alert.name}</span>{" "}
-                  ({alert.type}) as {resolving ? "resolved" : "unresolved"}?
+                  ({alert.type}) as {resolving ? "resolved" : "open again (unresolved)"}?
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Btn onClick={() => setConfirmAlert(null)}>Cancel</Btn>

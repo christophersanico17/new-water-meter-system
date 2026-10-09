@@ -1082,7 +1082,7 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
       <div className="card-hover bg-white rounded-lg border border-slate-200 overflow-hidden mb-3">
         <div className="px-4 py-2.5 text-[13px] font-semibold text-slate-700 border-b border-slate-100">Alert log — all alerts, newest first</div>
         <div className="overflow-x-auto">
-        <table className="w-full text-[12px] min-w-[640px]">
+        <table className="w-full text-[12px] min-w-[820px]">
           <thead>
             <tr className="text-slate-400 border-b border-slate-100">
               <th className="text-left px-3 py-2 font-medium">Alert ID</th>
@@ -1115,17 +1115,48 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
                 <td className="px-3 py-1.5 text-center">
                   {a.status === "Unresolved" ? <Badge tone="bad">Unresolved</Badge> : <Badge tone="good">Resolved</Badge>}
                 </td>
-                <td className="px-3 py-1.5 text-center">
-                  {a.status === "Unresolved" ? (
-                    <Btn variant="ghost" onClick={(e) => { e.stopPropagation(); resolveAlert(a.id); }}>
-                      Resolve
-                    </Btn>
-                  ) : (
-                    <div className="flex items-center justify-center gap-3">
-                      <Btn variant="ghost" onClick={(e) => { e.stopPropagation(); openDetail(a.id); }}>View</Btn>
-                      <Btn variant="ghostMuted" onClick={(e) => { e.stopPropagation(); unresolveAlert(a.id); }}>Unresolve</Btn>
-                    </div>
-                  )}
+                <td className="px-3 py-1.5">
+                  {/* Same two-button layout on every row so the column lines
+                      up: View, then the row's one status action. */}
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); openDetail(a.id); }}
+                      aria-label={`View alert ${a.id}`}
+                      className="inline-flex items-center justify-center gap-1 w-[72px] h-7 rounded-md border border-slate-300 bg-white text-[11px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      View
+                    </button>
+                    {a.status === "Unresolved" ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); resolveAlert(a.id); }}
+                        aria-label={`Resolve alert ${a.id}`}
+                        className="inline-flex items-center justify-center gap-1 w-[84px] h-7 rounded-md bg-emerald-600 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-1 transition"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Resolve
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); unresolveAlert(a.id); }}
+                        aria-label={`Reopen alert ${a.id}`}
+                        className="inline-flex items-center justify-center gap-1 w-[84px] h-7 rounded-md border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 transition"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                        </svg>
+                        Reopen
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -1187,7 +1218,7 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
                 {viewed.status === "Unresolved" ? (
                   <Btn variant="primary" onClick={() => { setViewId(null); resolveAlert(viewed.id); }}>Mark as Resolved</Btn>
                 ) : (
-                  <Btn variant="primary" onClick={() => { setViewId(null); unresolveAlert(viewed.id); }}>Mark as Unresolved</Btn>
+                  <Btn variant="primary" onClick={() => { setViewId(null); unresolveAlert(viewed.id); }}>Reopen alert</Btn>
                 )}
               </div>
             </div>
