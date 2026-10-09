@@ -3,7 +3,7 @@ import { buildInitialAlerts, genReading, computeBill, peso } from "./data";
 import { AdminView } from "./views/AdminView";
 import { ResidentView } from "./views/ResidentView";
 import { GcashModal } from "./components/GcashModal";
-import { Toast, Btn } from "./ui/atoms";
+import { Btn } from "./ui/atoms";
 import {
   getToken, adminLogin, adminLogout,
   fetchResidents, fetchBills, fetchBillingPeriods, generateBills,
@@ -66,7 +66,7 @@ export default function WaterSystemPrototype() {
   const [myAlerts, setMyAlerts] = useState([]);
   const [activeResidentId, setActiveResidentId] = useState(residentSession?.householdId || null);
 
-  const [toast, setToast] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [adminPage, setAdminPage] = useState(adminSession ? "dashboard" : "login");
   const [residentPage, setResidentPage] = useState(residentSession ? "dashboard" : "login");
   const [alertFilter, setAlertFilter] = useState("All");
@@ -77,12 +77,24 @@ export default function WaterSystemPrototype() {
   const [paymentStep, setPaymentStep] = useState("confirm");
   const [loading, setLoading] = useState(USE_API);
 
-  const toastTimer = useRef(null);
+  const notificationTimers = useRef({});
 
   function showToast(message, tone = "info") {
-    setToast({ message, tone });
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3000);
+    const id = Date.now() + Math.random();
+    setNotifications((prev) => [...prev, { id, message, tone }]);
+
+    notificationTimers.current[id] = setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      delete notificationTimers.current[id];
+    }, 3000);
+  }
+
+  function removeNotification(id) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (notificationTimers.current[id]) {
+      clearTimeout(notificationTimers.current[id]);
+      delete notificationTimers.current[id];
+    }
   }
 
   // ── Load data ───────────────────────────────────────────────
@@ -1051,7 +1063,33 @@ export default function WaterSystemPrototype() {
           </div>
         );
       })()}
-      <Toast toast={toast} />
+      {/* Notification panel */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+        {notifications.map((notif) => (
+          <div
+            key={notif.id}
+            className={`p-3 rounded-lg shadow-lg text-sm animate-in fade-in slide-in-from-right border-l-4 ${
+              notif.tone === "success"
+                ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                : notif.tone === "warn"
+                ? "bg-amber-50 border-amber-500 text-amber-800"
+                : notif.tone === "error"
+                ? "bg-red-50 border-red-500 text-red-800"
+                : "bg-blue-50 border-blue-500 text-blue-800"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span>{notif.message}</span>
+              <button
+                onClick={() => removeNotification(notif.id)}
+                className="text-xs opacity-60 hover:opacity-100 flex-shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
