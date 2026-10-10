@@ -16,7 +16,7 @@ const ALERT_SETTINGS_DEFAULTS = {
   // Anything faster than this can't be real water through a household sensor
   // (a YF-S201 tops out around 30 L/min) — it's electrical noise, e.g. a
   // loose signal wire. Such readings are discarded instead of billed.
-  maxPlausibleFlowLpm: 100,
+  maxPlausibleFlowLpm: 35, // the YF-S201 sensor reads 1-30 L/min, so anything above ~35 is noise
   leakFlowLpm: 2, // low but non-zero — the signature of a persistent drip/leak
   leakSustainedMinutes: 15, // ...if it's been continuous for this long, it's a leak
   leakMaxGapMinutes: 5, // a gap bigger than this breaks a leak streak
