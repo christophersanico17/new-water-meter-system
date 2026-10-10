@@ -5,7 +5,8 @@ export function GcashBillingSection({ me, onPay }) {
   const isPaid = me.paymentStatus === "Paid";
   const isGcashPending = me.paymentStatus === "GCash Pending";
   const isCashPending = me.paymentStatus === "Cash Pending";
-  const displayAmount = isPaid ? 0 : me.totalDue;
+  const hasNoBill = me.paymentStatus === "No bill";
+  const displayAmount = isPaid || hasNoBill ? 0 : me.totalDue;
 
   return (
     <>
@@ -33,16 +34,20 @@ export function GcashBillingSection({ me, onPay }) {
           ) : (
             <>
               <p className="text-[11px] text-slate-500 mb-3">
-                {isPaid ? "No pending balance." : "Scan the GCash QR code to pay. An admin will verify your receipt reference."}
+                {hasNoBill
+                  ? "No bill has been issued for this period yet. It will appear here once the barangay office generates it."
+                  : isPaid
+                    ? "No pending balance."
+                    : "Scan the GCash QR code to pay. An admin will verify your receipt reference."}
               </p>
               <button
                 onClick={() => onPay(me.id)}
-                disabled={isPaid}
+                disabled={isPaid || hasNoBill}
                 className={`w-full flex items-center justify-center gap-2 font-semibold text-sm py-2.5 rounded-lg transition ${
-                  isPaid ? "bg-slate-300 text-slate-500 cursor-not-allowed" : "bg-[#0072CE] hover:bg-[#005ea3] text-white"
+                  isPaid || hasNoBill ? "bg-slate-300 text-slate-500 cursor-not-allowed" : "bg-[#0072CE] hover:bg-[#005ea3] text-white"
                 }`}
               >
-                {isPaid ? "No payment due" : "Pay with GCash QR"}
+                {isPaid ? "No payment due" : hasNoBill ? "No bill yet" : "Pay with GCash QR"}
               </button>
             </>
           )}

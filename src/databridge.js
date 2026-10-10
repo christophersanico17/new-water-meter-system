@@ -40,11 +40,13 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
   const baselinePrev = latestBill ? latestBill.prev_cm3 : 0;
   // Rounded: float subtraction leaves noise like 2.4385000000000012.
   const consumption = latestBill ? Math.round((latestBill.curr_cm3 - latestBill.prev_cm3) * 10000) / 10000 : 0;
-  const amount = latestBill ? latestBill.amount : computeBill(0);
+  // No bill issued yet: show nothing owed. (The old fallback showed the ₱200 minimum as a real
+  // amount, so residents could try to pay a bill that does not exist.)
+  const amount = latestBill ? latestBill.amount : 0;
   const prevBalance = latestBill ? latestBill.prev_balance : 0;
-  const totalDue = latestBill ? latestBill.total_due : amount;
+  const totalDue = latestBill ? latestBill.total_due : 0;
 
-  const paymentStatus = latestBill ? latestBill.payment_status : "Unpaid";
+  const paymentStatus = latestBill ? latestBill.payment_status : "No bill";
   const paymentMethod = latestBill ? latestBill.payment_method : null;
   const rawPaymentRef = latestBill ? latestBill.payment_ref : null;
   const paymentReference = rawPaymentRef?.startsWith("QR:") ? rawPaymentRef.slice(3) : null;
@@ -105,7 +107,7 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     passwordResetRequested: Boolean(resident.password_reset_requested),
 
     bill_id: latestBill ? latestBill.id : null,
-    history: history.length > 0 ? history : [{ period, prev: 0, curr: 0, amt: MIN_BILL }],
+    history: history.length > 0 ? history : [{ period, prev: 0, curr: 0, amt: 0 }],
   };
 }
 
