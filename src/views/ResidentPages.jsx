@@ -1105,9 +1105,9 @@ export function ResidentBills({ me, setPage, startGcashPayment }) {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* ── Left: period selector ── */}
-        <div className="w-64 flex-shrink-0 flex flex-col gap-3">
+        <div className="w-full lg:w-64 lg:flex-shrink-0 flex flex-col gap-3">
           <div className="card-hover bg-white rounded-lg border border-slate-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100">
               <div className="text-[13px] font-semibold text-slate-700">Select Billing Period</div>

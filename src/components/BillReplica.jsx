@@ -76,7 +76,7 @@ export function BillReplica({ me, paymentStamp, period }) {
       </div>
 
       {/* Bill to + billing info */}
-      <div className="px-5 py-4 grid grid-cols-2 gap-4 border-b border-slate-200">
+      <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-b border-slate-200">
         <div className="space-y-1.5">
           <div className="flex gap-2 items-center">
             <span className="font-bold text-slate-700 w-16 flex-shrink-0 bg-yellow-200 px-1.5 py-0.5 rounded text-[10px] uppercase">Bill To</span>
@@ -89,7 +89,7 @@ export function BillReplica({ me, paymentStamp, period }) {
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
           <div className="flex items-center gap-1">
             <span className="bg-sky-100 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 uppercase">Standpost #</span>
             <span className="font-semibold text-slate-700">{me.standpost}</span>
@@ -126,7 +126,7 @@ export function BillReplica({ me, paymentStamp, period }) {
       </div>
 
       {/* Billing tables */}
-      <div className="px-5 py-4 grid grid-cols-2 gap-4 border-b border-slate-200">
+      <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-slate-200">
         {/* Left: Previous billing */}
         <div>
           <table className="w-full text-[11px] border border-slate-300">
