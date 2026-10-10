@@ -1907,10 +1907,6 @@ export function HouseholdsPage({
           );
         })}
       </div>
-          {searchTerm || selectedPurok !== "All Puroks"
-            ? `${filtered.length} of ${households.length} households`
-            : `${households.length} total households`}
-
       {showAddModal && (
         <AddHouseholdModal
           onAdd={onAddHousehold}
@@ -1920,14 +1916,14 @@ export function HouseholdsPage({
       )}
 
       {filtered.length > 0 ? (
-        <div className="columns-1 sm:columns-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           {filtered.map((h) => {
             const isExpanded = expandedId === h.id;
             const isDimmed = expandedId !== null && !isExpanded;
             return (
               <div
                 key={h.id}
-                className={`card-hover bg-white rounded-lg border p-3.5 mb-3 break-inside-avoid-column cursor-pointer motion-safe:hover:-translate-y-0.5 transition-all duration-200 ${
+                className={`card-hover bg-white rounded-lg border p-4 cursor-pointer motion-safe:hover:-translate-y-0.5 transition-all duration-200 min-w-0 ${
                   isExpanded
                     ? "border-slate-800 ring-2 ring-slate-300 shadow-[0_0_16px_rgba(0,0,0,0.35)]"
                     : isDimmed
@@ -2004,7 +2000,7 @@ export function HouseholdsPage({
                       );
                     })()}
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
                       <div>Current reading: <span className="font-semibold text-slate-800">{h.currCm3} CM³</span></div>
                       <div>Previous reading: <span className="font-semibold text-slate-800">{h.prevCm3} CM³</span></div>
                       <div>This cycle: <span className="font-semibold text-slate-800">{h.consumption} CM³</span></div>
