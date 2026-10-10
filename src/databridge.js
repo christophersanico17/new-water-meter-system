@@ -107,7 +107,8 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     passwordResetRequested: Boolean(resident.password_reset_requested),
 
     bill_id: latestBill ? latestBill.id : null,
-    history: history.length > 0 ? history : [{ period, prev: 0, curr: 0, amt: 0 }],
+    // placeholder: a record that is not a real bill, so admin lists skip it (see AdminPages billingRecords)
+    history: history.length > 0 ? history : [{ period, prev: 0, curr: 0, amt: 0, placeholder: true }],
   };
 }
 

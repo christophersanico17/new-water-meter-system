@@ -548,6 +548,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
       : `${selectedBillingMonth} ${selectedBillingYear}`;
   const billingRecords = households.flatMap((h) =>
     h.history
+      .filter((rec) => !rec.placeholder)
       .filter((rec) => {
         const [recMonth, recYear] = rec.period.split(" ");
         const monthMatches = selectedBillingMonth === "All months" || monthMap[selectedBillingMonth] === recMonth;
