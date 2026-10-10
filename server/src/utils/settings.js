@@ -12,7 +12,7 @@ const ALERT_SETTINGS_DEFAULTS = {
   highFlowLearnDays: 14, // learn from this many days of the household's readings
   highFlowLearnMultiplier: 1.5, // threshold = household's typical peak flow × this
   highFlowMinSamples: 20, // flowing readings needed before learning kicks in (~5 min of use at 15s reports)
-  highFlowMaxLpm: 40, // learning never raises the threshold above this
+  highFlowMaxLpm: 30, // learning never raises the threshold above this (the YF-S201 tops out at 30 L/min)
   // Anything faster than this can't be real water through a household sensor
   // (a YF-S201 tops out around 30 L/min) — it's electrical noise, e.g. a
   // loose signal wire. Such readings are discarded instead of billed.
