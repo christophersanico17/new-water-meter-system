@@ -21,6 +21,7 @@ import {
   fetchDeletedHouseholds,
   restoreHousehold,
   purgeDeletedHousehold,
+  recordManualReading,
 } from "../api";
 
 const MONTHS = [
@@ -1608,6 +1609,58 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
 // The email on file is where this household's account setup and password
 // reset codes are sent, so only officers can change it here (residents can
 // change their own from My Profile once signed in).
+// Lets the admin type a meter reading by hand, e.g. when the sensor is offline
+// or a reading was read off the meter. Saved readings feed the next bill.
+function ManualReadingForm({ household, onSaved, showToast }) {
+  const [value, setValue] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  async function save() {
+    setError("");
+    const cm3 = Number(value);
+    if (value.trim() === "" || !Number.isFinite(cm3) || cm3 < 0) {
+      setError("Enter the meter reading in CM³.");
+      return;
+    }
+    if (cm3 < household.currCm3) {
+      setError(`Cannot be lower than the last reading (${household.currCm3} CM³).`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await recordManualReading(household.id, cm3);
+      setValue("");
+      showToast?.(`Reading saved for ${household.id}.`, "success");
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <div className="text-xs font-semibold text-slate-500 mb-1.5">Manual meter reading</div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="number"
+          min={household.currCm3}
+          step="any"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={`Last: ${household.currCm3} CM³`}
+          className="w-44 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+        />
+        <Btn onClick={save}>{saving ? "Saving…" : "Save reading"}</Btn>
+      </div>
+      {error && <div className="text-xs text-rose-600 mt-1.5">{error}</div>}
+    </div>
+  );
+}
+
 function HouseholdEmailEditor({ household, onSave }) {
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState(household.email || "");
@@ -2030,6 +2083,7 @@ export function HouseholdsPage({
                         )}
                       </span>
                     </div>
+                    <ManualReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <HouseholdEmailEditor household={h} onSave={onSetHouseholdEmail} />
                     {h.password && (
                       <div className="pt-1">

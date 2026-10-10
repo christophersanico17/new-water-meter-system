@@ -364,6 +364,16 @@ export async function fetchReadings(householdId) {
   return request(`/readings?householdId=${encodeURIComponent(householdId)}`, { auth: activeAuthRole() });
 }
 
+// Admin records a meter reading by hand (server: POST /api/readings). The
+// server rejects a reading lower than the last one.
+export async function recordManualReading(householdId, cm3) {
+  return request(`/readings`, {
+    method: "POST",
+    body: { householdId, cm3, flowRate: 0, flowType: "Normal" },
+    auth: "admin",
+  });
+}
+
 export async function fetchLatestReading(meterNo) {
   return request(`/readings/latest/${encodeURIComponent(meterNo)}`, { auth: activeAuthRole() });
 }
