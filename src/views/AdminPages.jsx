@@ -1924,6 +1924,8 @@ export function HouseholdsPage({
               <div
                 key={h.id}
                 className={`card-hover bg-white rounded-lg border p-4 cursor-pointer motion-safe:hover:-translate-y-0.5 transition-all duration-200 min-w-0 ${
+                  isExpanded ? "sm:col-span-2" : ""
+                } ${
                   isExpanded
                     ? "border-slate-800 ring-2 ring-slate-300 shadow-[0_0_16px_rgba(0,0,0,0.35)]"
                     : isDimmed
