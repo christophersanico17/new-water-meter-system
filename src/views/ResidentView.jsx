@@ -11,7 +11,7 @@ import {
   ResidentReportLeak,
   HelpPage,
 } from "./ResidentPages";
-import logoImage from "../assets/brgy.jpg";
+import logoImage from "../assets/logo/k-mark-white.svg";
 
 const NAV = [
   {
@@ -109,7 +109,7 @@ export function ResidentView({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <img src={logoImage} alt="logo" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+        <img src={logoImage} alt="logo" className="w-8 h-8 flex-shrink-0" />
         <div className="font-semibold text-[13px] truncate">{currentLabel}</div>
       </div>
 
@@ -133,7 +133,7 @@ export function ResidentView({
           <img
             src={logoImage}
             alt="logo"
-            className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow"
+            className="w-10 h-10 flex-shrink-0 shadow"
           />
           <div className="leading-[1.25] flex-1 min-w-0">
             <div className="font-extrabold text-[10px] uppercase tracking-wide">Barangay</div>

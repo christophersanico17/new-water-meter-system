@@ -1,0 +1,43 @@
+/* Kinamlutan Water logo (Flow K). Change the size with font-size on .kw-logo. */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&display=swap');
+
+:root {
+  --kw-navy: #0A2A5E;
+  --kw-blue: #0B5FBF;
+  --kw-aqua: #22B8F0;
+  --kw-sky:  #8FDBFA;
+  --kw-mist: #EAF6FD;
+}
+
+.kw-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36em;
+  font-family: 'Outfit', 'Segoe UI', Arial, sans-serif;
+  font-size: 28px;            /* default size; override where you use it */
+  line-height: 1;
+  text-decoration: none;
+}
+.kw-logo img  { height: 2em; width: auto; display: block; }
+.kw-name      { display: block; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; color: var(--kw-navy); }
+.kw-sub       { display: block; font-weight: 500; font-size: 0.37em; letter-spacing: 0.44em; color: var(--kw-blue); }
+
+/* Stacked: K above the name (login page, splash, square spaces) */
+.kw-logo--stacked          { flex-direction: column; text-align: center; }
+.kw-logo--stacked img      { height: 2.35em; }
+.kw-logo--stacked .kw-sub  { margin-right: -0.44em; }
+
+/* Reversed: for dark or blue backgrounds (use k-mark-white.svg) */
+.kw-logo--reversed .kw-name { color: #fff; }
+.kw-logo--reversed .kw-sub  { color: var(--kw-aqua); }
+
+/* Badge: round version (profile picture, receipt or bill header, stamp) */
+.kw-logo--badge {
+  flex-direction: column; justify-content: center; text-align: center; gap: 0.3em;
+  width: 8.75em; height: 8.75em; box-sizing: border-box;
+  border: 0.19em solid var(--kw-blue); border-radius: 50%; background: #fff;
+}
+.kw-logo--badge img      { height: 3em; }
+.kw-logo--badge .kw-sub  { font-size: 0.4em; margin-right: -0.44em; }
+.kw-logo--badge.kw-logo--reversed          { background: transparent; border-color: #fff; }
+.kw-logo--badge.kw-logo--reversed .kw-sub  { color: #fff; }

@@ -14,7 +14,7 @@ import {
   AuditLogPage,
 } from "./AdminPages";
 import { adminForgotPassword, adminResetPassword } from "../api";
-import logoImage from "../assets/brgy.jpg";
+import logoImage from "../assets/logo/k-mark-white.svg";
 
 const NAV_ITEMS = [
   {
@@ -159,7 +159,7 @@ export function AdminView(props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <img src={logoImage} alt="logo" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+        <img src={logoImage} alt="logo" className="w-8 h-8 flex-shrink-0" />
         <div className="font-semibold text-[13px] truncate">{currentLabel}</div>
       </div>
 
@@ -184,7 +184,7 @@ export function AdminView(props) {
           <img
             src={logoImage}
             alt="logo"
-            className="w-10 h-10 rounded-full object-cover flex-shrink-0 shadow"
+            className="w-10 h-10 flex-shrink-0 shadow"
           />
           <div className={`leading-[1.25] flex-1 min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
             <div className="font-extrabold text-[10px] uppercase tracking-wide">Barangay</div>
@@ -593,7 +593,7 @@ function AdminLoginScreen({ onAdminLogin }) {
             <img
               src={logoImage}
               alt="Barangay Kinamlutan logo"
-              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover shadow-lg border-2 border-white/20"
+              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 shadow-lg"
             />
             <div className="font-extrabold text-white text-base sm:text-lg leading-tight">
               Barangay Kinamlutan
@@ -859,7 +859,7 @@ function ForgotPasswordScreen({ initialEmail, onDone, onCancel }) {
             <img
               src={logoImage}
               alt="Barangay Kinamlutan logo"
-              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover shadow-lg border-2 border-white/20"
+              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 shadow-lg"
             />
             <div className="font-extrabold text-white text-base sm:text-lg leading-tight">
               Barangay Kinamlutan

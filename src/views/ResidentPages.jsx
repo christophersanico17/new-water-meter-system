@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Badge, StatCard, Btn } from "../ui/atoms";
 import { SectionHeader } from "../components/SectionHeader";
-import logoImage from "../assets/brgy.jpg";
+import logoImage from "../assets/logo/k-mark-white.svg";
 import { BillReplica } from "../components/BillReplica";
 import { GcashBillingSection } from "../components/GcashBilling";
 import { ConsumptionStatusBanner } from "../components/ConsumptionStatusBanner";
@@ -209,7 +209,7 @@ export function LoginScreen({
             <img
               src={logoImage}
               alt="Barangay Kinamlutan logo"
-              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover shadow-lg border-2 border-white/20"
+              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 shadow-lg"
             />
             <div className="font-extrabold text-white text-base sm:text-lg leading-tight">
               Barangay Kinamlutan
@@ -653,7 +653,7 @@ function ResidentForgotPasswordScreen({ households, initialHouseholdId, onDone, 
             <img
               src={logoImage}
               alt="Barangay Kinamlutan logo"
-              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover shadow-lg border-2 border-white/20"
+              className="mx-auto mb-3 h-16 w-16 sm:h-20 sm:w-20 shadow-lg"
             />
             <div className="font-extrabold text-white text-base sm:text-lg leading-tight">
               Barangay Kinamlutan
