@@ -136,6 +136,8 @@ body {
     width: 100%;
     max-width: none;
     margin: 0;
+    /* Two statements per A4 sheet: each one is shrunk so both fit on the page. */
+    zoom: 0.8;
   }
 
   .print-bill-page .print-bill-item {
