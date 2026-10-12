@@ -82,9 +82,9 @@ sensor (and what makes billing off these readings safe).
 
 The firmware only ever reports raw pulse counts — all the pulses→liters
 math happens server-side using that household's **pulses-per-liter**
-value (editable right next to the device key, defaults to 450, the
-calibrate it to get its real pulses per liter). This means recalibrating never requires
-reflashing hardware.
+value (editable right next to the device key). It defaults to 450, a common
+starting value, so calibrate the ZJ-S201 to get its real pulses per liter. This
+means recalibrating never requires reflashing hardware.
 
 To calibrate precisely for your specific sensor:
 
