@@ -33,7 +33,6 @@ export function BillReplica({ me, paymentStamp, period }) {
       amount: rec.amt,
     }));
 
-  const arrearsTotal = +balanceRows.reduce((s, r) => s + r.amount, 0).toFixed(2);
   const totalAmount = [...balanceRows.map((r) => r.amount), currentAmt].reduce((s, v) => s + v, 0);
 
   const selectedPeriod = period || { label: currentConsumed.period };
@@ -217,15 +216,9 @@ export function BillReplica({ me, paymentStamp, period }) {
                   colSpan={3}
                   className="px-2 py-1 font-semibold text-slate-700 text-[11px]"
                 >
-                  ARREARS (UNPAID PREVIOUS BILLS)
+                  BALANCE
                 </td>
               </tr>
-              {balanceRows.length === 0 && (
-                <tr className="border-t border-slate-100">
-                  <td colSpan={2} className="px-2 py-1 text-slate-500">No arrears</td>
-                  <td className="px-2 py-1 text-right text-slate-700 pr-3">{peso(0)}</td>
-                </tr>
-              )}
               {balanceRows.map((row) => (
                 <tr key={row.month} className="border-t border-slate-100">
                   <td className="px-2 py-1 text-center text-slate-600">{row.consumed}</td>
@@ -237,10 +230,6 @@ export function BillReplica({ me, paymentStamp, period }) {
                   </td>
                 </tr>
               ))}
-              <tr className="border-t border-slate-300">
-                <td colSpan={2} className="px-2 py-1 font-semibold text-slate-700">Total arrears</td>
-                <td className="px-2 py-1 text-right font-semibold text-slate-700 pr-3">{peso(arrearsTotal)}</td>
-              </tr>
               <tr className="border-t-2 border-slate-400 bg-yellow-100">
                 <td colSpan={2} className="px-2 py-2 font-bold text-slate-800 text-[11px]">
                   TOTAL AMOUNT
