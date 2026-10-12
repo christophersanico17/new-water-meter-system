@@ -757,7 +757,6 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.prev}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{rowConsumed(row)}</td>
-                  <td className="px-3 py-1.5 text-right text-rose-600 whitespace-nowrap">{rowArrears(row) > 0 ? peso(rowArrears(row)) : "—"}</td>
                   <td className="px-3 py-1.5 text-right font-semibold text-slate-800 whitespace-nowrap">{peso(record.amt)}</td>
                   <td className="px-3 py-1.5 text-left text-slate-700 whitespace-nowrap">{rowMethod(row)}</td>
                   <td className="px-3 py-1.5 text-left text-slate-500 whitespace-nowrap">{record.paid ? formatPaymentDate(record.paidDate) : "—"}</td>
