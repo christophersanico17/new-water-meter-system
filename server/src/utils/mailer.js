@@ -1,21 +1,15 @@
-// Sends confirmation-code emails through Brevo's web API (BREVO_API_KEY in the
-// environment; BREVO_SENDER_EMAIL must be a sender verified in Brevo).
-//
-// Brevo is used over HTTPS rather than SMTP, because some hosts (Railway
-// included) block outbound SMTP connections.
-//
-// When BREVO_API_KEY isn't set (e.g. local development), codes are printed to
-// the server console instead, so the flows still work. A code is never sent
-// back in an API response.
+// Sends confirmation codes through Brevo's HTTPS API (SMTP is blocked on Railway).
+// Without BREVO_API_KEY (local development) the code is printed to the console instead.
+// Codes are never returned in an API response.
 
 const DEFAULT_SENDER = "christophersanico17@gmail.com";
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
 function isMailConfigured() {
   return Boolean(process.env.BREVO_API_KEY);
 }
 
-// "christopher@gmail.com" -> "ch*********@gmail.com", so a screen can say
-// where the code went without revealing the whole address.
+// "christopher@gmail.com" -> "ch*********@gmail.com"
 function maskEmail(email) {
   const [name, domain] = String(email).split("@");
   if (!domain) return "your email";
@@ -23,13 +17,14 @@ function maskEmail(email) {
   return `${shown}${"*".repeat(Math.max(1, name.length - shown.length))}@${domain}`;
 }
 
-// Delivers `code` to `to`. Returns "email" or "console" (how it went out).
-// Throws if Brevo is configured but sending fails.
+// Returns "email" when sent through Brevo, "console" when printed locally.
+// Throws if Brevo is configured and the request fails.
 async function sendCode({ to, subject, intro, code, minutes }) {
   if (!isMailConfigured()) {
     console.log(`\n  [email not configured] ${subject} for ${to}: ${code} (valid ${minutes} min)\n`);
     return "console";
   }
+
   const text = [
     intro,
     "",
@@ -40,7 +35,7 @@ async function sendCode({ to, subject, intro, code, minutes }) {
     "— Barangay Kinamlutan Water System",
   ].join("\n");
 
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+  const res = await fetch(BREVO_URL, {
     method: "POST",
     headers: {
       "api-key": process.env.BREVO_API_KEY,
@@ -58,11 +53,12 @@ async function sendCode({ to, subject, intro, code, minutes }) {
     }),
     signal: AbortSignal.timeout(15000),
   });
+
   if (!res.ok) {
-    // Never include the key; Brevo's message is enough to diagnose a bad sender or key.
+    // Brevo's message helps diagnose a bad sender or key. The API key is never included.
     throw new Error(`Brevo returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
   return "email";
 }
 
-module.exports = { sendCode, maskEmail, isMailConfigured };
+module.exports = { sendCode, maskEmail };
