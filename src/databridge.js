@@ -35,7 +35,6 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     paidDate: b.payment_date,
   }));
 
-  const prevCm3 = reading ? null : latestBill ? latestBill.prev_cm3 : 0;
   const currCm3 = reading ? reading.cm3 : latestBill ? latestBill.curr_cm3 : 0;
   const baselinePrev = latestBill ? latestBill.prev_cm3 : 0;
   // Rounded: float subtraction leaves noise like 2.4385000000000012.

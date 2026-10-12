@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const { db } = require("../db/database");
-const { signToken, authMiddleware } = require("../utils/auth");
+const { signToken } = require("../utils/auth");
 const mailer = require("../utils/mailer");
 const { issueCode, checkCode, CODE_TTL_MINUTES } = require("../utils/verificationCodes");
 

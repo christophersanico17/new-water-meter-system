@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { buildInitialAlerts, genReading, computeBill, peso } from "./data";
+import { genReading, computeBill } from "./data";
 import { AdminView } from "./views/AdminView";
 import { ResidentView } from "./views/ResidentView";
 import { GcashModal } from "./components/GcashModal";
@@ -7,14 +7,14 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { Btn } from "./ui/atoms";
 import {
   getToken, adminLogin, adminLogout,
-  fetchResidents, fetchBills, fetchBillingPeriods, generateBills,
-  fetchReadings, fetchLatestReading,
-  submitGcashReference, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, fetchPayments, rejectGcash,
+  fetchResidents, fetchBills, generateBills,
+  fetchLatestReading,
+  submitGcashReference, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
   residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
   createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
   fetchLeakReports, resolveLeakReportApi, unresolveLeakReportApi,
-  fetchDeviceStatus, provisionDevice, revokeDevice, setDeviceCalibration, liveEventsUrl,
+  provisionDevice, revokeDevice, setDeviceCalibration, liveEventsUrl,
   updateAdminProfile,
 } from "./api";
 import { residentToHousehold } from "./databridge.js";
@@ -113,15 +113,13 @@ export default function WaterSystemPrototype() {
       // response), so those two are expected to 401/403 at that point —
       // that's correct, not a failure to recover from, hence the fallback
       // to [] below rather than bailing out to mock data.
-      const [residentsResult, billsResult, periodsResult, alertsResult] = await Promise.allSettled([
+      const [residentsResult, billsResult, alertsResult] = await Promise.allSettled([
         fetchResidents(),
         fetchBills(),
-        fetchBillingPeriods(),
         fetchAlerts(),
       ]);
       const residents = residentsResult.status === "fulfilled" ? residentsResult.value : [];
       const bills = billsResult.status === "fulfilled" ? billsResult.value : [];
-      const periods = periodsResult.status === "fulfilled" ? periodsResult.value : [];
       const rawAlerts = alertsResult.status === "fulfilled" ? alertsResult.value : [];
 
       if (residentsResult.status === "rejected") {

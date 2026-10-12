@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Badge, Btn } from "../ui/atoms";
+import { Btn } from "../ui/atoms";
 import {
   DashboardPage,
   ConsumptionPage,

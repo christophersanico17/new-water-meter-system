@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Badge, StatCard, Btn } from "../ui/atoms";
-import { SectionHeader } from "../components/SectionHeader";
+import { Badge, StatCard } from "../ui/atoms";
 import logoImage from "../assets/logo/k-mark-white.svg";
 import { BillReplica } from "../components/BillReplica";
 import { GcashBillingSection } from "../components/GcashBilling";
 import { ConsumptionStatusBanner } from "../components/ConsumptionStatusBanner";
-import { peso, MIN_BILL, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
+import { peso, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
 import { submitLeakReport, residentForgotPassword, residentResetPassword, requestResidentSetupCode, fetchAnnouncements } from "../api";
 import { deviceStatus, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
 
