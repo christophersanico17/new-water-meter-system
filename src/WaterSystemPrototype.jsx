@@ -665,12 +665,12 @@ export default function WaterSystemPrototype() {
   // ── Mark paid ────────────────────────────────────────────────
   // paymentMethod is whichever the admin picked in the confirm modal —
   // "Offline" (cash, received in person) or "GCash" (QR code confirmed by admin).
-  async function markPaid(id, paymentMethod = "Offline", paymentStamp, paymentReference) {
+  async function markPaid(id, paymentMethod = "Offline", paymentStamp, paymentReference, amount) {
     if (USE_API) {
       try {
         const household = households.find((h) => h.id === id);
         if (!household?.bill_id) throw new Error("No bill found for this household.");
-        await recordCash(household.bill_id, household.totalDue, paymentMethod, paymentReference);
+        await recordCash(household.bill_id, amount ?? household.totalDue, paymentMethod, paymentReference);
         await loadFromAPI(true); // refresh from backend
         return true;
       } catch (err) {

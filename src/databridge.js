@@ -22,6 +22,12 @@ function computeBill(consumptionCm3) {
  * @param {object|null} reading - the latest sensor reading row (or null)
  * @param {object[]} allBills - every bill row for this resident, oldest→newest
  */
+// Still owed on a bill: 0 once Paid, otherwise the total less what was paid so far.
+function outstandingAmount(bill) {
+  if (bill.payment_status === "Paid") return 0;
+  return Math.max(0, +(bill.total_due - (bill.amount_paid || 0)).toFixed(2));
+}
+
 export function residentToHousehold(resident, latestBill, reading, allBills = []) {
   const sortedBills = [...allBills].sort((a, b) => a.id - b.id);
 
@@ -30,6 +36,8 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     prev: b.prev_cm3,
     curr: b.curr_cm3,
     amt: b.amount,
+    // Still owed on this bill after any partial payments (0 once Paid).
+    remaining: outstandingAmount(b),
     paid: b.payment_status === "Paid",
     method: b.payment_method,
     paidDate: b.payment_date,
@@ -43,7 +51,8 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
   // amount, so residents could try to pay a bill that does not exist.)
   const amount = latestBill ? latestBill.amount : 0;
   const prevBalance = latestBill ? latestBill.prev_balance : 0;
-  const totalDue = latestBill ? latestBill.total_due : 0;
+  // What is still owed on the latest bill: the full total, less any partial payments.
+  const totalDue = latestBill ? outstandingAmount(latestBill) : 0;
 
   const paymentStatus = latestBill ? latestBill.payment_status : "No bill";
   const paymentMethod = latestBill ? latestBill.payment_method : null;
