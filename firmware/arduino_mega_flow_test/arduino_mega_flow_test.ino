@@ -18,7 +18,7 @@
 // The Mega runs its I/O at 5V natively, same as most hall-effect flow
 // sensors' native output level, so unlike ESP8266/ESP32 there's no logic-
 // level mismatch to worry about here — a direct wire from signal to
-// PULSE_PIN is fine for a standard 5V sensor like the YF-S201.
+// PULSE_PIN is fine for a standard 5V sensor like the ZJ-S201.
 //
 // Any digital pin with interrupt support works: on the Mega that's
 // 2, 3, 18, 19, 20, 21 (mapped to INT4, INT5, INT3, INT2, INT1, INT0
@@ -33,7 +33,7 @@ const uint8_t PULSE_PIN = 2;
 // How many pulses the sensor produces per full revolution of its internal
 // wheel/turbine. A simple single-magnet hall-effect module is 1
 // pulse/revolution; multi-magnet paddlewheel flow sensors like the
-// YF-S201 report several per revolution (check the datasheet, or count
+// ZJ-S201 report several per revolution (check the datasheet, or count
 // pulses for one manually-turned revolution to find out). Left at 1 by
 // default: the raw "pulses" and "totalPulses" columns are accurate no
 // matter what this is set to — only the "rpm" column depends on it.

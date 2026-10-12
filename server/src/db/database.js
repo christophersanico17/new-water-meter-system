@@ -203,7 +203,7 @@ function initSchema() {
   // the secret the device authenticates with (X-Device-Key header) — never
   // exposed over the public /api/residents endpoint, only to admins.
   // pulses_per_liter is the calibration constant for the attached sensor
-  // (e.g. ~450 for a YF-S201 hall-effect flow sensor); admins can recalibrate
+  // (e.g. ~450 for a typical hall-effect flow sensor; calibrate the ZJ-S201 to its real value); admins can recalibrate
   // it without reflashing the device, since volume math happens server-side.
   if (!householdColumns.includes("device_key")) {
     db.exec("ALTER TABLE households ADD COLUMN device_key TEXT");

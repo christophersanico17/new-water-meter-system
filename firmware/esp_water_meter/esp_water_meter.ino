@@ -1,7 +1,7 @@
 // Barangay Kinamlutan Water System — flow-sensor meter firmware
 // ────────────────────────────────────────────────────────────
 // Runs on an ESP8266 (NodeMCU / Wemos D1 Mini) or ESP32 dev board wired to a
-// pulse-output water flow sensor (e.g. YF-S201/YF-S401 hall-effect sensor)
+// pulse-output water flow sensor (e.g. ZJ-S201 hall-effect sensor)
 // installed in-line with a household's pipe/pump. Every REPORT_INTERVAL_MS
 // it reports how many pulses it counted and over what span of time — the
 // server does the liters/flow-rate math using that household's calibration
@@ -61,7 +61,7 @@ volatile unsigned long pulseCount = 0;
 volatile unsigned long secondPulseCount = 0; // same pulses, but reset every second for per-second samples
 
 // Noise filter: a loose or floating signal wire can fire this interrupt
-// hundreds of thousands of times a second. A real YF-S201 at its ~30 L/min
+// hundreds of thousands of times a second. A real flow sensor at its rated
 // maximum pulses about every 4.4 ms, so edges closer together than 1 ms
 // can't be water and are ignored. (The server separately discards any
 // report that still works out to an impossible flow rate.)

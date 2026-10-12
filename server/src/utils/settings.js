@@ -12,11 +12,11 @@ const ALERT_SETTINGS_DEFAULTS = {
   highFlowLearnDays: 14, // learn from this many days of the household's readings
   highFlowLearnMultiplier: 1.5, // threshold = household's typical peak flow × this
   highFlowMinSamples: 20, // flowing readings needed before learning kicks in (~5 min of use at 15s reports)
-  highFlowMaxLpm: 30, // learning never raises the threshold above this (the YF-S201 tops out at 30 L/min)
+  highFlowMaxLpm: 30, // learning never raises the threshold above this (the flow sensor's rated maximum; see the datasheet)
   // Anything faster than this can't be real water through a household sensor
-  // (a YF-S201 tops out around 30 L/min) — it's electrical noise, e.g. a
+  // (faster than the flow sensor can measure) — it's electrical noise, e.g. a
   // loose signal wire. Such readings are discarded instead of billed.
-  maxPlausibleFlowLpm: 35, // the YF-S201 sensor reads 1-30 L/min, so anything above ~35 is noise
+  maxPlausibleFlowLpm: 35, // the flow sensor reads only up to its rated maximum, so anything well above that is noise
   leakFlowLpm: 2, // low but non-zero — the signature of a persistent drip/leak
   leakSustainedMinutes: 15, // ...if it's been continuous for this long, it's a leak
   leakMaxGapMinutes: 5, // a gap bigger than this breaks a leak streak
