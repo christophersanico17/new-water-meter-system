@@ -582,15 +582,6 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
     return row.record.method === "GCash" ? "GCash" : row.record.method ? "Cash" : "—";
   };
   const rowConsumed = (row) => usedCm3(row.record);
-  // Unpaid earlier bills of the same household, still owed on this bill.
-  const rowArrears = (row) => {
-    const idx = row.household.history.indexOf(row.record);
-    return +row.household.history
-      .slice(0, idx)
-      .filter((rec) => !rec.paid && !rec.placeholder)
-      .reduce((s, rec) => s + rec.amt, 0)
-      .toFixed(2);
-  };
 
   const filteredBillingRecords = billingRecords.filter((row) => {
     if (statusFilter === "All") return true;
@@ -649,7 +640,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
           )}
           <Btn onClick={() => window.print()}>Export PDF</Btn>
           <Btn onClick={() => {
-            const header = ["Bill #","Period","Household","Resident name","Standpost #","Meter #","Prev CM3","Curr CM3","Consumed","Arrears","Total Amount","Method","Date paid","Status"];
+            const header = ["Bill #","Period","Household","Resident name","Standpost #","Meter #","Prev CM3","Curr CM3","Consumed","Total Amount","Method","Date paid","Status"];
             const rows = filteredBillingRecords.map((row, i) => [
               `BL-${String(i + 1).padStart(3, "0")}`,
               row.record.period,
@@ -660,7 +651,6 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               row.record.prev,
               row.record.curr,
               rowConsumed(row),
-              rowArrears(row),
               row.record.amt,
               rowMethod(row),
               row.record.paid ? formatPaymentDate(row.record.paidDate) : "",
@@ -732,7 +722,6 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Prev CM³</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Curr CM³</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Consumed</th>
-              <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Arrears</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total Amt</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Method</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Date paid</th>
@@ -841,7 +830,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               })
             ) : (
               <tr>
-                <td colSpan={16} className="px-3 py-6 text-center text-slate-500">No records found for {selectedBillingMonth} {selectedBillingYear}.</td>
+                <td colSpan={15} className="px-3 py-6 text-center text-slate-500">No records found for {selectedBillingMonth} {selectedBillingYear}.</td>
               </tr>
             )}
           </tbody>
