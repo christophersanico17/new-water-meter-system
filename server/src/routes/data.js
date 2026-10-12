@@ -6,7 +6,7 @@ const { recordAudit } = require("../utils/audit");
 const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
-const { settleCarriedBalances, unsettleCarriedBalances, applyPartialPayment, outstandingOf } = require("../utils/billing");
+const { settleCarriedBalances, unsettleCarriedBalances } = require("../utils/billing");
 const { moveToTrash, restoreFromTrash, TRASH_DAYS } = require("../utils/trash");
 
 const router = express.Router();
@@ -356,7 +356,7 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
       const currCm3 = latestReading.cm3;
       const consumption = Math.max(currCm3 - prevCm3, 0);
       const amount = computeBillAmount(consumption);
-      const prevBalance = latestBill && latestBill.payment_status !== "Paid" ? outstandingOf(latestBill) : 0;
+      const prevBalance = latestBill && latestBill.payment_status !== "Paid" ? latestBill.total_due : 0;
       const totalDue = +(amount + prevBalance).toFixed(2);
 
       const priorBills = db
@@ -415,43 +415,11 @@ router.post("/bills/:id/mark-paid", authMiddleware("admin"), (req, res) => {
     return res.status(400).json({ error: "Enter the numeric GCash transaction reference." });
   }
 
-  // Amount this payment covers. Omitted = the whole outstanding balance.
-  const owed = outstandingOf(bill);
-  if (owed <= 0) {
-    return res.status(400).json({ error: "This bill is already fully paid." });
-  }
-  const rawAmount = req.body?.amount;
-  let paidNow = owed;
-  if (rawAmount !== undefined && rawAmount !== null && rawAmount !== "") {
-    paidNow = Number(rawAmount);
-    if (!Number.isFinite(paidNow) || paidNow <= 0) {
-      return res.status(400).json({ error: "Enter a payment amount greater than zero." });
-    }
-    if (paidNow > owed + 0.005) {
-      return res.status(400).json({ error: `The payment is more than the amount due (₱${owed.toFixed(2)}).` });
-    }
-    paidNow = Math.min(paidNow, owed);
-  }
-  paidNow = +paidNow.toFixed(2);
-
-  const fullyPaid = +(owed - paidNow).toFixed(2) <= 0;
-  const paymentRef = method === "GCash" ? `${QR_PAYMENT_REF_PREFIX}${paymentReference}` : null;
-  if (fullyPaid) {
-    db.prepare(
-      `UPDATE bills SET payment_status = 'Paid', payment_method = ?, payment_ref = ?, payment_date = datetime('now'),
-                        amount_paid = total_due
-       WHERE id = ?`
-    ).run(method, paymentRef, req.params.id);
-    settleCarriedBalances(bill.id, owed);
-  } else {
-    // Partial payment: the bill stays Unpaid, and what is left keeps showing as owed.
-    db.prepare(
-      `UPDATE bills SET payment_status = 'Unpaid', payment_method = ?, payment_ref = ?, payment_date = datetime('now'),
-                        amount_paid = ?
-       WHERE id = ?`
-    ).run(method, paymentRef, +(bill.amount_paid + paidNow).toFixed(2), req.params.id);
-    applyPartialPayment(bill.id, paidNow);
-  }
+  db.prepare(
+    `UPDATE bills SET payment_status = 'Paid', payment_method = ?, payment_ref = ?, payment_date = datetime('now')
+     WHERE id = ?`
+  ).run(method, method === "GCash" ? `${QR_PAYMENT_REF_PREFIX}${paymentReference}` : null, req.params.id);
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.mark_paid", bill.household_id, `Marked ${bill.period} bill Paid (${method}) for ${bill.household_id}`);
   res.json({ success: true });
@@ -463,11 +431,10 @@ router.post("/bills/:id/mark-unpaid", authMiddleware("admin"), (req, res) => {
   if (!bill) return res.status(404).json({ error: "Bill not found." });
 
   db.prepare(
-    `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL, payment_date = NULL,
-                      amount_paid = 0
+    `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL, payment_date = NULL
      WHERE id = ?`
   ).run(req.params.id);
-  unsettleCarriedBalances(bill.id, bill.amount_paid);
+  unsettleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.mark_unpaid", bill.household_id, `Reverted ${bill.period} bill to Unpaid for ${bill.household_id}`);
   res.json({ success: true });
@@ -557,9 +524,9 @@ router.post("/bills/:id/gcash/confirm", authMiddleware("admin"), (req, res) => {
   }
 
   db.prepare(
-    `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now'), amount_paid = total_due WHERE id = ?`
+    `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
   ).run(req.params.id);
-  settleCarriedBalances(bill.id, outstandingOf(bill));
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.gcash_confirm", bill.household_id, `Manually confirmed GCash payment for ${bill.household_id} (${bill.period})`);
   res.json({ success: true });
@@ -625,9 +592,9 @@ router.post("/bills/:id/cash/confirm", authMiddleware("admin"), (req, res) => {
   }
 
   db.prepare(
-    `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now'), amount_paid = total_due WHERE id = ?`
+    `UPDATE bills SET payment_status = 'Paid', payment_date = datetime('now') WHERE id = ?`
   ).run(req.params.id);
-  settleCarriedBalances(bill.id, outstandingOf(bill));
+  settleCarriedBalances(bill.id);
 
   recordAudit(req, "bill.cash_confirm", bill.household_id, `Confirmed cash payment for ${bill.household_id} (${bill.period})`);
   res.json({ success: true });

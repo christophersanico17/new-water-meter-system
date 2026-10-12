@@ -230,11 +230,6 @@ function initSchema() {
   if (!billColumns.includes("payment_rejection_reason")) {
     db.exec("ALTER TABLE bills ADD COLUMN payment_rejection_reason TEXT");
   }
-  // Total paid so far on a bill (partial payments add up here until it's full).
-  if (!billColumns.includes("amount_paid")) {
-    db.exec("ALTER TABLE bills ADD COLUMN amount_paid REAL NOT NULL DEFAULT 0");
-    db.exec("UPDATE bills SET amount_paid = total_due WHERE payment_status = 'Paid'");
-  }
 
   // One-time email codes for resident account setup / password reset
   // (see utils/verificationCodes.js).

@@ -30,7 +30,7 @@ export function BillReplica({ me, paymentStamp, period }) {
     .map((rec) => ({
       consumed: usedCm3(rec),
       month: rec.period.split(" ")[0].toUpperCase(),
-      amount: rec.remaining ?? rec.amt,
+      amount: rec.amt,
     }));
 
   const arrearsTotal = +balanceRows.reduce((s, r) => s + r.amount, 0).toFixed(2);

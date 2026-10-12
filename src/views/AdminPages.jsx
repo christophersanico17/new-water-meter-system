@@ -445,33 +445,18 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
   // Method picked in the "Mark paid" modal — "Offline" (cash) or "GCash"
   // (manually recording a GCash payment received outside the automatic flow).
   const [payMethod, setPayMethod] = React.useState("Offline");
-  // Amount the resident actually paid in cash/GCash. Less than the full balance
-  // leaves the rest owed (arrears).
-  const [payAmount, setPayAmount] = React.useState("");
 
   async function confirmPayment() {
     if (!confirmPay) return;
     const { id, action } = confirmPay;
-    const amount = Number(payAmount);
-    if (action !== "unpaid" && (!Number.isFinite(amount) || amount <= 0 || amount > confirmPay.amt + 0.005)) {
-      showToast(`Enter an amount from ₱0.01 up to ${peso(confirmPay.amt)}.`, "warn");
-      return;
-    }
     setConfirmPay(null);
     if (action === "unpaid") {
       markUnpaid(id);
     } else {
-      const marked = await markPaid(id, payMethod, undefined, undefined, amount);
-      if (marked) {
-        const fullyPaid = amount >= confirmPay.amt - 0.005;
-        showToast(
-          `${id}: ${peso(amount)} recorded (${payMethod === "GCash" ? "GCash" : "Cash"})${fullyPaid ? "" : ", rest stays as arrears"}`,
-          "success"
-        );
-      }
+      const marked = await markPaid(id, payMethod);
+      if (marked) showToast(`${id} marked as paid (${payMethod === "GCash" ? "GCash" : "Cash"})`, "success");
     }
     setPayMethod("Offline");
-    setPayAmount("");
   }
 
   function openManualGcashVerification() {
@@ -603,7 +588,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
     return +row.household.history
       .slice(0, idx)
       .filter((rec) => !rec.paid && !rec.placeholder)
-      .reduce((s, rec) => s + (rec.remaining ?? rec.amt), 0)
+      .reduce((s, rec) => s + rec.amt, 0)
       .toFixed(2);
   };
 
@@ -845,13 +830,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                         Mark unpaid
                       </Btn>
                     ) : household.paymentStatus === "Unpaid" ? (
-                      <Btn
-                        variant="ghost"
-                        onClick={() => {
-                          setPayAmount(String(household.totalDue));
-                          setConfirmPay({ action: "paid", id: household.id, name: household.name, amt: household.totalDue });
-                        }}
-                      >
+                      <Btn variant="ghost" onClick={() => setConfirmPay({ action: "paid", id: household.id, name: household.name, amt: record.amt })}>
                         Mark paid
                       </Btn>
                     ) : (
@@ -1013,34 +992,11 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
             </div>
             <div className="p-5 text-sm text-slate-600">
               <p className="mb-4">
-                {confirmPay.action === "unpaid" ? "Revert the recorded payment of " : "Record a payment for "}
-                {confirmPay.action === "unpaid" && (
-                  <>
-                    <span className="font-semibold text-slate-800">{peso(confirmPay.amt)}</span> for{" "}
-                  </>
-                )}
+                {confirmPay.action === "unpaid" ? "Revert the recorded payment of " : "Record a payment of "}
+                <span className="font-semibold text-slate-800">{peso(confirmPay.amt)}</span> for{" "}
                 <span className="font-semibold text-slate-800">{confirmPay.id} — {confirmPay.name}</span>
                 {confirmPay.action === "unpaid" ? " back to unpaid?" : "?"}
               </p>
-              {confirmPay.action === "paid" && (
-                <div className="mb-4">
-                  <div className="text-[11px] font-semibold text-slate-500 mb-1.5">
-                    Amount paid (up to {peso(confirmPay.amt)})
-                  </div>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    max={confirmPay.amt}
-                    value={payAmount}
-                    onChange={(e) => setPayAmount(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                  />
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    If less than the full amount, the rest stays as arrears.
-                  </div>
-                </div>
-              )}
               {confirmPay.action === "paid" && (
                 <div className="mb-4">
                   <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Payment method</div>
