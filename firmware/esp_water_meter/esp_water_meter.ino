@@ -332,7 +332,15 @@ bool sendReading(unsigned long pulses, unsigned long intervalMs) {
   WiFiClient plainClient;
   WiFiClientSecure secureClient;
   bool https = serverUrl.startsWith("https://");
-  if (https) secureClient.setInsecure();
+  if (https) {
+    secureClient.setInsecure();
+#if defined(ESP8266)
+    // The TLS engine's default buffers are large enough to exhaust the ESP8266's
+    // ~80 KB of RAM during the handshake. 512-byte buffers are enough for this
+    // server's responses and leave memory free for the sensor counting.
+    secureClient.setBufferSizes(512, 512);
+#endif
+  }
 
   HTTPClient http;
   String url = serverUrl + "/api/devices/readings";
