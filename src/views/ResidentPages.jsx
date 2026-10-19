@@ -4,7 +4,7 @@ import logoImage from "../assets/logo/k-mark-white.svg";
 import { BillReplica } from "../components/BillReplica";
 import { GcashBillingSection } from "../components/GcashBilling";
 import { ConsumptionStatusBanner } from "../components/ConsumptionStatusBanner";
-import { peso, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
+import { peso, BILLING_PERIOD, formatDueDate, formatPaymentDate, usedCm3, fmtCm3, dueDateForPeriod, getConsumptionStatus, isOverdue, daysOverdue } from "../data";
 import { submitLeakReport, residentForgotPassword, residentResetPassword, requestResidentSetupCode, fetchAnnouncements } from "../api";
 import { deviceStatus, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
 
@@ -848,7 +848,7 @@ function LiveUsageCard({ me }) {
         <div className="rounded-lg p-3 bg-slate-50">
           <div className="text-[10px] text-slate-500 mb-0.5">Meter reading</div>
           <div className="text-xl font-bold text-slate-700">
-            {me.currCm3} <span className="text-xs font-medium">CM³</span>
+            {fmtCm3(me.currCm3)} <span className="text-xs font-medium">CM³</span>
           </div>
         </div>
       </div>
@@ -886,7 +886,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
-        <StatCard label={`Usage (${me.period})`} value={`${me.consumption} CM³`} />
+        <StatCard label={`Usage (${me.period})`} value={`${fmtCm3(me.consumption)} CM³`} />
         <StatCard label="Amount due" value={peso(me.amount)} tone="bad" />
         <StatCard label="Previous balance" value={peso(me.prevBalance)} />
         <StatCard label="Total due" value={peso(me.totalDue)} tone="bad" />
@@ -1699,11 +1699,11 @@ export function ResidentConsumption({ me }) {
       <LiveUsageCard me={me} />
 
       <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
-        <StatCard label="Previous reading" value={`${me.prevCm3} CM³`} />
-        <StatCard label="Current reading" value={`${me.currCm3} CM³`} />
+        <StatCard label="Previous reading" value={`${fmtCm3(me.prevCm3)} CM³`} />
+        <StatCard label="Current reading" value={`${fmtCm3(me.currCm3)} CM³`} />
         <StatCard
           label="This cycle"
-          value={`${me.consumption} CM³`}
+          value={`${fmtCm3(me.consumption)} CM³`}
           tone={status.tone}
         />
         <StatCard label="Last recorded flow" value={me.deviceProvisioned && me.deviceLastSeen ? `${me.lastFlow} L/min` : "No sensor"} />

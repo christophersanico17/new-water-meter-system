@@ -1,5 +1,5 @@
 import React from "react";
-import { peso, formatDueDate, dueDateForPeriod, billingDateForPeriod, usedCm3 } from "../data";
+import { peso, formatDueDate, dueDateForPeriod, billingDateForPeriod, usedCm3, fmtCm3 } from "../data";
 
 // Shared bill statement layout — used by the resident's "My Bills" page, the
 // admin's Bill Statements page, and the GCash payment receipt, so all three
@@ -202,7 +202,7 @@ export function BillReplica({ me, paymentStamp, period }) {
             <tbody>
               <tr className="border-b border-slate-200">
                 <td className="px-2 py-2 text-center font-bold text-slate-800">
-                  {currentConsumed.curr}
+                  {fmtCm3(currentConsumed.curr)}
                 </td>
                 <td className="px-2 py-2 text-center font-bold text-slate-800 border-l border-slate-300">
                   {currentCM2}

@@ -214,3 +214,6 @@ export function buildInitialAlerts(households) {
     status: i < 2 ? "Unresolved" : "Resolved",
   }));
 }
+
+// Display only: readings are stored to 4 decimals, shown to 2.
+export const fmtCm3 = (n) => Number(n || 0).toFixed(2);

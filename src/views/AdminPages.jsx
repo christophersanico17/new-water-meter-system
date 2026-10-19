@@ -4,7 +4,7 @@ import { SectionHeader } from "../components/SectionHeader";
 import { askConfirm } from "../components/confirmBus";
 import { BillReplica } from "../components/BillReplica";
 import { deviceStatus, isDeviceOnline, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
-import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, peso, isOverdue, daysOverdue } from "../data";
+import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, fmtCm3, peso, isOverdue, daysOverdue } from "../data";
 import {
   fetchAnnouncements,
   createAnnouncement,
@@ -743,9 +743,9 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
                   <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">{household.name}</td>
                   <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{household.standpost}</td>
                   <td className="px-3 py-1.5 text-slate-500 whitespace-nowrap">{household.meter}</td>
-                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.prev}</td>
-                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr}</td>
-                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{rowConsumed(row)}</td>
+                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(record.prev)}</td>
+                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(record.curr)}</td>
+                  <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(rowConsumed(row))}</td>
                   <td className="px-3 py-1.5 text-right font-semibold text-slate-800 whitespace-nowrap">{peso(record.amt)}</td>
                   <td className="px-3 py-1.5 text-left text-slate-700 whitespace-nowrap">{rowMethod(row)}</td>
                   <td className="px-3 py-1.5 text-left text-slate-500 whitespace-nowrap">{record.paid ? formatPaymentDate(record.paidDate) : "—"}</td>
@@ -2056,9 +2056,9 @@ export function HouseholdsPage({
                     })()}
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
                     <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-                      <div>Current reading: <span className="font-semibold text-slate-800">{h.currCm3} CM³</span></div>
-                      <div>Previous reading: <span className="font-semibold text-slate-800">{h.prevCm3} CM³</span></div>
-                      <div>This cycle: <span className="font-semibold text-slate-800">{h.consumption} CM³</span></div>
+                      <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} CM³</span></div>
+                      <div>Previous reading: <span className="font-semibold text-slate-800">{fmtCm3(h.prevCm3)} CM³</span></div>
+                      <div>This cycle: <span className="font-semibold text-slate-800">{fmtCm3(h.consumption)} CM³</span></div>
                       <div>Amount due: <span className="font-semibold text-slate-800">{peso(h.amount)}</span></div>
                       <div>Total due: <span className="font-semibold text-slate-800">{peso(h.totalDue)}</span></div>
                     </div>
@@ -2440,9 +2440,9 @@ export function RecordsPage({ households, showToast }) {
                     <td className="px-3 py-1.5 font-medium text-slate-700 whitespace-nowrap">{household.id}</td>
                     <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">{household.name}</td>
                     <td className="px-3 py-1.5 text-slate-500 whitespace-nowrap">{record.period}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.prev}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{record.curr}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{usedCm3(record)}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(record.prev)}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(record.curr)}</td>
+                    <td className="px-3 py-1.5 text-right text-slate-500 whitespace-nowrap">{fmtCm3(usedCm3(record))}</td>
                     <td className="px-3 py-1.5 text-right font-semibold text-slate-800 whitespace-nowrap">{peso(record.amt)}</td>
                     <td className="px-3 py-1.5 text-center whitespace-nowrap">
                       {record.paid ? <Badge tone="good">Paid</Badge> : <Badge tone="bad">Unpaid</Badge>}
