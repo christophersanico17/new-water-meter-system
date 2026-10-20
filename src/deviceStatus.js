@@ -2,11 +2,12 @@
 // admin and resident views so both show the same "is this meter reporting
 // right now" answer from the same data.
 //
-// The firmware reports every ~15s (REPORT_INTERVAL_MS in
-// firmware/esp_water_meter/config.h), so 45s = three missed reports: long
-// enough to ride out one slow or dropped report, short enough that an
-// unplugged device shows Offline within a minute.
-export const DEVICE_ONLINE_MS = 45_000;
+// The firmware reports every REPORT_INTERVAL_MS (5s in config.h), but over
+// WiFi and HTTPS a report can fail and be retried, leaving gaps of 1 to 2
+// minutes. 2 minutes rides out those retries and matches the server's
+// tolerance, while a truly unplugged device still shows Offline within 2 minutes
+// (the server raises its "No Sensor Data" alert at 5 minutes).
+export const DEVICE_ONLINE_MS = 120_000;
 
 // Views re-render on this interval so Online ages into Offline on screen
 // even when no new data arrives (a device going quiet produces no event).
