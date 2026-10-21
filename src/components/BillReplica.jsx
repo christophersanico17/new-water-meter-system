@@ -166,7 +166,7 @@ export function BillReplica({ me, paymentStamp, period }) {
 
           <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 text-[10px] text-emerald-800">
             <div>₱20.00 Per m³</div>
-            <div>CC m³= TCM³-PC m³</div>
+            <div>CC m³= TC m³-PC m³</div>
           </div>
         </div>
 

@@ -841,9 +841,9 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-[11px] text-slate-500">
         <div className="font-semibold text-slate-600 mb-0.5">Billing formula & rate reference</div>
-        CC m³ = TCM³ − PC m³  |  Rate: ₱20.00 per m³  |  Minimum billing: ₱200.00  |  1 m³ = 1,000 liters
+        CC m³ = TC m³ − PC m³  |  Rate: ₱20.00 per m³  |  Minimum billing: ₱200.00  |  1 m³ = 1,000 liters
         <br />
-        CC m³ = Current Consumed m³  |  TCM³ = Total Cumulative Meter Reading  |  PC m³ = Previous Consumed m³
+        CC m³ = Current Consumed m³  |  TC m³ = Total Cumulative Meter Reading  |  PC m³ = Previous Consumed m³
       </div>
 
       {verifyGcash && (
