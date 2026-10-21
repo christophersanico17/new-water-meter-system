@@ -11,7 +11,7 @@ bill — no manual meter reading.
 
 - An ESP8266 board (NodeMCU or Wemos D1 Mini — cheapest option) **or**
   an ESP32 dev board.
-- A pulse-output water flow sensor, e.g. the **ZJ-S201** (hall-effect),
+- A pulse-output water flow sensor, e.g. the **YF-S201** (hall-effect),
   or similar. Any sensor with a 3-wire VCC/GND/signal
   pulse output works — you calibrate its exact pulses-per-liter from the
   admin panel, so it doesn't have to be this exact model.
@@ -37,7 +37,7 @@ bill — no manual meter reading.
 Most of these sensors run their signal line as an open-collector output
 that pulls low on each pulse — the firmware enables the ESP's internal
 pull-up resistor (`INPUT_PULLUP`) on that pin, so no external resistor is
-needed for a standard ZJ-S201-style sensor.
+needed for a standard YF-S201-style sensor.
 
 ## Software setup
 
@@ -83,7 +83,7 @@ sensor (and what makes billing off these readings safe).
 The firmware only ever reports raw pulse counts — all the pulses→liters
 math happens server-side using that household's **pulses-per-liter**
 value (editable right next to the device key). It defaults to 450, a common
-starting value, so calibrate the ZJ-S201 to get its real pulses per liter. This
+starting value, so calibrate the YF-S201 to get its real pulses per liter. This
 means recalibrating never requires reflashing hardware.
 
 To calibrate precisely for your specific sensor:
