@@ -115,11 +115,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error." });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n  Barangay Kinamlutan Water System API`);
   console.log(`  Listening on http://localhost:${PORT}`);
   console.log(`  Health check: http://localhost:${PORT}/api/health\n`);
 });
+// Keep idle connections open longer than the flow meters' report gap, so they
+// can reuse one connection (see postReading in the firmware) instead of
+// re-doing the TLS handshake. headersTimeout must stay above keepAliveTimeout.
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 66_000;
 
 // Lets flow-meter devices find this machine on the LAN by broadcast instead
 // of a hardcoded IP — see utils/discovery.js.

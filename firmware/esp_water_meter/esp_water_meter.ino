@@ -52,6 +52,14 @@ const unsigned long DISCOVERY_RETRY_MS = 15000;
 const unsigned long REDISCOVER_AFTER_FAILURES = 3;
 bool wasWiFiConnected = false;
 
+// One HTTP client kept between reports, so the connection to the server stays
+// open and is not re-handshaked every REPORT_INTERVAL_MS. The TLS handshake is
+// the step that runs out of the ESP8266's ~40 KB of free heap and fails.
+WiFiClient plainClient;
+WiFiClientSecure secureClient;
+HTTPClient http;
+String httpUrl = ""; // the URL the open connection was made to
+
 // ── Pulse counting ──────────────────────────────────────────
 // The flow sensor's hall-effect switch fires an interrupt on every rotation
 // of its internal turbine. We only ever touch pulseCount from the ISR and
@@ -310,6 +318,42 @@ bool discoverServer() {
 
 // ── Reporting ────────────────────────────────────────────────
 
+// Plain HTTP for a server on the local network, HTTPS for the cloud-hosted
+// one. setInsecure() encrypts the connection but skips verifying the server's
+// certificate — the ESP has no practical way to keep a CA bundle or a pinned
+// fingerprint current as the host rotates certificates. The device key still
+// authenticates the device to the server.
+//
+// Sends one report and returns its HTTP status, or a negative error code when
+// nothing answered. `reused` is set when the report went out on a connection
+// that was already open from the previous report.
+int postReading(const String& url, const String& body, bool& reused) {
+  reused = http.connected() && httpUrl == url;
+  if (!reused) {
+    http.end();
+    bool begun;
+    if (url.startsWith("https://")) {
+      secureClient.setInsecure();
+#if defined(ESP8266)
+      // The TLS engine's default buffers are large enough to exhaust the ESP8266's
+      // ~80 KB of RAM during the handshake. 512-byte buffers are enough for this
+      // server's responses and leave memory free for the sensor counting.
+      secureClient.setBufferSizes(512, 512);
+#endif
+      begun = http.begin(secureClient, url);
+    } else {
+      begun = http.begin(plainClient, url);
+    }
+    if (!begun) return -1;
+    httpUrl = url;
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Device-Key", DEVICE_KEY);
+    http.setReuse(true);
+    http.setTimeout(8000);
+  }
+  return http.POST(body);
+}
+
 // Returns true on a confirmed (HTTP 200) report. On false, the caller
 // (loop()) is responsible for carrying pulses/intervalMs forward — this
 // function only ever attempts to send, it never mutates pulseCount or the
@@ -329,30 +373,7 @@ bool sendReading(unsigned long pulses, unsigned long intervalMs) {
   // server's certificate — the ESP has no practical way to keep a CA bundle
   // or a pinned fingerprint current as the host rotates certificates. The
   // device key still authenticates the device to the server.
-  WiFiClient plainClient;
-  WiFiClientSecure secureClient;
-  bool https = serverUrl.startsWith("https://");
-  if (https) {
-    secureClient.setInsecure();
-#if defined(ESP8266)
-    // The TLS engine's default buffers are large enough to exhaust the ESP8266's
-    // ~80 KB of RAM during the handshake. 512-byte buffers are enough for this
-    // server's responses and leave memory free for the sensor counting.
-    secureClient.setBufferSizes(512, 512);
-#endif
-  }
-
-  HTTPClient http;
   String url = serverUrl + "/api/devices/readings";
-
-  if (!(https ? http.begin(secureClient, url) : http.begin(plainClient, url))) {
-    Serial.println(F("http.begin() failed — bad server address, rediscovering."));
-    serverUrl = "";
-    return false;
-  }
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Device-Key", DEVICE_KEY);
-  http.setTimeout(8000);
 
   String body = String("{\"pulses\":") + pulses + ",\"intervalMs\":" + intervalMs + ",\"samples\":[";
   for (int i = 0; i < sampleCount; i++) {
@@ -360,7 +381,14 @@ bool sendReading(unsigned long pulses, unsigned long intervalMs) {
     body += samples[i];
   }
   body += "]}";
-  int status = http.POST(body);
+  bool reused = false;
+  int status = postReading(url, body, reused);
+  if (status < 0 && reused) {
+    // The server closed the idle connection (its keep-alive timeout). Open a
+    // fresh one and try once more before counting this as a failure.
+    http.end();
+    status = postReading(url, body, reused);
+  }
   bool ok = status == 200;
 
   if (ok) {
@@ -371,7 +399,7 @@ bool sendReading(unsigned long pulses, unsigned long intervalMs) {
     Serial.printf("Report failed (HTTP %d): %s — pulses carried into the next attempt.\n", status, http.getString().c_str());
     if (status < 0) {
       Serial.printf("  Connection error: %s\n", http.errorToString(status).c_str());
-      if (https) {
+      if (url.startsWith("https://")) {
         char sslError[100] = "";
 #if defined(ESP8266)
         int sslCode = secureClient.getLastSSLError(sslError, sizeof(sslError));
@@ -385,14 +413,17 @@ bool sendReading(unsigned long pulses, unsigned long intervalMs) {
     // Negative status = connection-level failure (nothing answered at that
     // address), unlike a 4xx/5xx where the server was found but refused.
     // A few of those in a row means the server likely moved — find it again.
+#ifndef SERVER_URL
     if (status < 0 && consecutiveFailures >= REDISCOVER_AFTER_FAILURES) {
       Serial.println(F("Server unreachable at the last known address — rediscovering."));
       serverUrl = "";
       lastDiscoveryMs = 0;
     }
+#endif
   }
 
-  http.end();
+  // A good connection stays open for the next report; a failed one is dropped.
+  if (!ok) http.end();
 
   // Blink to give a field technician a quick visual without needing a
   // laptop plugged in: brief flash on success, longer flash on failure.
