@@ -22,6 +22,7 @@ import {
   restoreHousehold,
   purgeDeletedHousehold,
   recordManualReading,
+  correctBillStartReading,
 } from "../api";
 
 const MONTHS = [
@@ -1661,6 +1662,61 @@ function ManualReadingForm({ household, onSaved, showToast }) {
   );
 }
 
+// Sets the starting reading of the household's latest unpaid bill, for a system
+// that began counting after the meter already had a total.
+function CorrectStartReadingForm({ household, onSaved, showToast }) {
+  const [value, setValue] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  async function save() {
+    setError("");
+    const prevCm3 = Number(value);
+    if (value.trim() === "" || !Number.isFinite(prevCm3) || prevCm3 < 0) {
+      setError("Enter the starting reading in CM³.");
+      return;
+    }
+    if (!household.bill_id) {
+      setError("This household has no bill to correct.");
+      return;
+    }
+    if (!window.confirm(`Set the starting reading to ${prevCm3} CM³ for ${household.id}? This recalculates the unpaid bill.`)) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await correctBillStartReading(household.bill_id, prevCm3);
+      setValue("");
+      showToast?.(`Starting reading set. New amount: ${peso(result.amount)}.`, "success");
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <div className="text-xs font-semibold text-slate-500 mb-1.5">Correct starting reading</div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Starting CM³"
+          className="w-44 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+        />
+        <Btn onClick={save}>{saving ? "Saving…" : "Set starting reading"}</Btn>
+      </div>
+      {error && <div className="text-xs text-rose-600 mt-1.5">{error}</div>}
+    </div>
+  );
+}
+
 function HouseholdEmailEditor({ household, onSave }) {
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState(household.email || "");
@@ -2084,6 +2140,7 @@ export function HouseholdsPage({
                       </span>
                     </div>
                     <ManualReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
+                    <CorrectStartReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <HouseholdEmailEditor household={h} onSave={onSetHouseholdEmail} />
                     {h.password && (
                       <div className="pt-1">

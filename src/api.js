@@ -366,6 +366,15 @@ export async function fetchReadings(householdId) {
 
 // Admin records a meter reading by hand (server: POST /api/readings). The
 // server rejects a reading lower than the last one.
+// Admin sets the starting reading of the latest unpaid bill (server: POST /api/bills/:id/correct-start).
+export async function correctBillStartReading(billId, prevCm3) {
+  return request(`/bills/${billId}/correct-start`, {
+    method: "POST",
+    body: { prevCm3 },
+    auth: "admin",
+  });
+}
+
 export async function recordManualReading(householdId, cm3) {
   return request(`/readings`, {
     method: "POST",

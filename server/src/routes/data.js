@@ -374,6 +374,48 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
   res.json({ success: true, period, created, skipped, noReading });
 });
 
+// POST /api/bills/:id/correct-start  (officer/admin) — sets the starting meter
+// reading of a household's latest unpaid bill, for when the system began
+// counting after the meter already had a total. The bill's current reading is
+// the household's latest device reading. Body: { prevCm3 }
+router.post("/bills/:id/correct-start", authMiddleware("admin", ["officer"]), (req, res) => {
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
+  if (!bill) return res.status(404).json({ error: "Bill not found." });
+  if (bill.payment_status !== "Unpaid") {
+    return res.status(400).json({ error: "Only an unpaid bill can be corrected." });
+  }
+  const latest = db.prepare("SELECT MAX(id) AS id FROM bills WHERE household_id = ?").get(bill.household_id);
+  if (latest.id !== bill.id) {
+    return res.status(400).json({ error: "Only the household's latest bill can be corrected." });
+  }
+
+  const prevCm3 = Number(req.body?.prevCm3);
+  if (!Number.isFinite(prevCm3) || prevCm3 < 0) {
+    return res.status(400).json({ error: "Enter a starting reading of 0 or more." });
+  }
+  const reading = db
+    .prepare("SELECT cm3 FROM readings WHERE household_id = ? ORDER BY recorded_at DESC LIMIT 1")
+    .get(bill.household_id);
+  const currCm3 = reading ? reading.cm3 : bill.curr_cm3;
+  if (prevCm3 > currCm3) {
+    return res.status(400).json({ error: `The starting reading cannot be higher than the current reading (${currCm3} CM³).` });
+  }
+
+  const consumption = +(currCm3 - prevCm3).toFixed(4);
+  const amount = computeBillAmount(consumption);
+  const totalDue = +(amount + bill.prev_balance).toFixed(2);
+  db.prepare("UPDATE bills SET prev_cm3 = ?, curr_cm3 = ?, amount = ?, total_due = ? WHERE id = ?")
+    .run(prevCm3, currCm3, amount, totalDue, bill.id);
+
+  recordAudit(
+    req,
+    "bill.correct_start",
+    bill.household_id,
+    `Set the starting reading of ${bill.household_id} ${bill.period} bill to ${prevCm3} CM³ (current ${currCm3} CM³, amount ₱${amount.toFixed(2)})`
+  );
+  res.json({ success: true, consumption, amount, totalDue });
+});
+
 // GET /api/bills — admin: all bills, optionally filtered by ?householdId=.
 // resident: always forced to their OWN household regardless of any
 // ?householdId= they pass, since billing amounts/payment status/balances
