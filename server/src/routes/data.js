@@ -738,6 +738,19 @@ router.post("/readings", authMiddleware("admin", ["officer"]), (req, res) => {
     `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, ?, ?, 'manual')`
   ).run(householdId, cm3, flowRate, flowType || "Normal");
 
+  // Keep the household's open bill in step with the new reading, so the bill
+  // does not keep charging for the reading that was current when it was made.
+  const openBill = db
+    .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
+    .get(householdId);
+  if (openBill && openBill.payment_status === "Unpaid") {
+    const consumption = +(cm3 - openBill.prev_cm3).toFixed(4);
+    const amount = computeBillAmount(Math.max(consumption, 0));
+    const totalDue = +(amount + openBill.prev_balance).toFixed(2);
+    db.prepare("UPDATE bills SET curr_cm3 = ?, amount = ?, total_due = ? WHERE id = ?")
+      .run(cm3, amount, totalDue, openBill.id);
+  }
+
   recordAudit(req, "reading.manual_entry", householdId, `Manually recorded a ${cm3} m³ reading for ${householdId}`);
   res.json({ success: true });
 });
