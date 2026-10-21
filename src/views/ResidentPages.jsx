@@ -848,7 +848,7 @@ function LiveUsageCard({ me }) {
         <div className="rounded-lg p-3 bg-slate-50">
           <div className="text-[10px] text-slate-500 mb-0.5">Meter reading</div>
           <div className="text-xl font-bold text-slate-700">
-            {fmtCm3(me.currCm3)} <span className="text-xs font-medium">CM³</span>
+            {fmtCm3(me.currCm3)} <span className="text-xs font-medium">m³</span>
           </div>
         </div>
       </div>
@@ -886,7 +886,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
-        <StatCard label={`Usage (${me.period})`} value={`${fmtCm3(me.consumption)} CM³`} />
+        <StatCard label={`Usage (${me.period})`} value={`${fmtCm3(me.consumption)} m³`} />
         <StatCard label="Amount due" value={peso(me.amount)} tone="bad" />
         <StatCard label="Previous balance" value={peso(me.prevBalance)} />
         <StatCard label="Total due" value={peso(me.totalDue)} tone="bad" />
@@ -895,7 +895,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
       {/* Bar chart */}
       <div className="card-hover bg-white rounded-lg border border-slate-200 p-4 mb-4">
         <div className="font-semibold text-[13px] text-slate-700 mb-3">
-          Monthly consumption (CM³)
+          Monthly consumption (m³)
         </div>
         <div className="flex items-end gap-2.5 h-32">
           {me.history.map((rec, i) => {
@@ -1014,8 +1014,8 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
           <thead>
             <tr className="text-slate-400 border-b border-slate-100">
               <th className="text-left px-3 py-2 font-medium">Period</th>
-              <th className="text-right px-3 py-2 font-medium">Prev CM³</th>
-              <th className="text-right px-3 py-2 font-medium">Curr CM³</th>
+              <th className="text-right px-3 py-2 font-medium">Prev m³</th>
+              <th className="text-right px-3 py-2 font-medium">Curr m³</th>
               <th className="text-right px-3 py-2 font-medium">Bill (₱)</th>
               <th className="text-right px-3 py-2 font-medium">Total Due</th>
               <th className="text-center px-3 py-2 font-medium">Status</th>
@@ -1665,7 +1665,7 @@ export function ResidentProfile({ me, onUpdateProfile }) {
             { label: "Meter Number", value: me.meter },
             { label: "Standpost Number", value: `#${me.standpost}` },
             { label: "Date of Connection", value: formatDueDate(me.dateConnected) },
-            { label: "Rate", value: "₱20.00 per CM²" },
+            { label: "Rate", value: "₱20.00 per m³" },
             { label: "Minimum Bill", value: "₱200.00" },
             { label: "Account Status", value: me.paymentStatus === "Paid" ? "Active - Current" : "Active - With Balance" },
           ].map((item) => (
@@ -1699,11 +1699,11 @@ export function ResidentConsumption({ me }) {
       <LiveUsageCard me={me} />
 
       <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
-        <StatCard label="Previous reading" value={`${fmtCm3(me.prevCm3)} CM³`} />
-        <StatCard label="Current reading" value={`${fmtCm3(me.currCm3)} CM³`} />
+        <StatCard label="Previous reading" value={`${fmtCm3(me.prevCm3)} m³`} />
+        <StatCard label="Current reading" value={`${fmtCm3(me.currCm3)} m³`} />
         <StatCard
           label="This cycle"
-          value={`${fmtCm3(me.consumption)} CM³`}
+          value={`${fmtCm3(me.consumption)} m³`}
           tone={status.tone}
         />
         <StatCard label="Last recorded flow" value={me.deviceProvisioned && me.deviceLastSeen ? `${me.lastFlow} L/min` : "No sensor"} />
@@ -1721,7 +1721,7 @@ export function ResidentConsumption({ me }) {
       {/* Bar chart */}
       <div className="card-hover bg-white rounded-lg border border-slate-200 p-4 mb-4">
         <div className="font-semibold text-[13px] text-slate-700 mb-3">
-          Consumption history (CM³)
+          Consumption history (m³)
         </div>
         <div className="flex items-end gap-3 h-32">
           {me.history.map((rec, i) => {
@@ -1759,9 +1759,9 @@ export function ResidentConsumption({ me }) {
           <thead>
             <tr className="text-slate-400 border-b border-slate-100">
               <th className="text-left px-3 py-2 font-medium">Period</th>
-              <th className="text-right px-3 py-2 font-medium">Prev (CM³)</th>
-              <th className="text-right px-3 py-2 font-medium">Curr (CM³)</th>
-              <th className="text-right px-3 py-2 font-medium">Used (CM³)</th>
+              <th className="text-right px-3 py-2 font-medium">Prev (m³)</th>
+              <th className="text-right px-3 py-2 font-medium">Curr (m³)</th>
+              <th className="text-right px-3 py-2 font-medium">Used (m³)</th>
               <th className="text-right px-3 py-2 font-medium">Bill (₱)</th>
               <th className="text-center px-3 py-2 font-medium">vs Avg</th>
             </tr>
@@ -1825,7 +1825,7 @@ const ANNOUNCEMENTS = [
     title: "Water Conservation Advisory",
     date: "June 10, 2026",
     content:
-      "Due to the current dry season, we encourage all households to conserve water usage. Limit watering of plants and car washing during peak hours (6 AM – 9 AM and 5 PM – 8 PM). Households exceeding 50 CM³ per cycle may be flagged for inspection.",
+      "Due to the current dry season, we encourage all households to conserve water usage. Limit watering of plants and car washing during peak hours (6 AM – 9 AM and 5 PM – 8 PM). Households exceeding 50 m³ per cycle may be flagged for inspection.",
     tag: "Advisory",
   },
   {
@@ -2183,7 +2183,7 @@ export function ResidentReportLeak({ me, useApi }) {
 const FAQ = [
   {
     q: "How is my bill computed?",
-    a: "Current consumed CM² = Total cumulative meter reading − Previous consumed CM². The result is multiplied by ₱20.00 per CM², subject to a minimum billing of ₱200.00 per month.",
+    a: "Current consumed m³ = Total cumulative meter reading − Previous consumed m³. The result is multiplied by ₱20.00 per m³, subject to a minimum billing of ₱200.00 per month.",
   },
   {
     q: "How do I pay my bill online?",

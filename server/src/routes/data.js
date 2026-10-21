@@ -304,8 +304,8 @@ function detectAbnormalConsumption(householdId, consumption, priorBills) {
   alerts.createAlert(
     householdId,
     type,
-    `${consumption} CM3/cycle`,
-    `${Math.round(avg * settings.highUsageRatio)} CM3/cycle`
+    `${consumption} m³/cycle`,
+    `${Math.round(avg * settings.highUsageRatio)} m³/cycle`
   );
 }
 
@@ -398,7 +398,7 @@ router.post("/bills/:id/correct-start", authMiddleware("admin", ["officer"]), (r
     .get(bill.household_id);
   const currCm3 = reading ? reading.cm3 : bill.curr_cm3;
   if (prevCm3 > currCm3) {
-    return res.status(400).json({ error: `The starting reading cannot be higher than the current reading (${currCm3} CM³).` });
+    return res.status(400).json({ error: `The starting reading cannot be higher than the current reading (${currCm3} m³).` });
   }
 
   const consumption = +(currCm3 - prevCm3).toFixed(4);
@@ -411,7 +411,7 @@ router.post("/bills/:id/correct-start", authMiddleware("admin", ["officer"]), (r
     req,
     "bill.correct_start",
     bill.household_id,
-    `Set the starting reading of ${bill.household_id} ${bill.period} bill to ${prevCm3} CM³ (current ${currCm3} CM³, amount ₱${amount.toFixed(2)})`
+    `Set the starting reading of ${bill.household_id} ${bill.period} bill to ${prevCm3} m³ (current ${currCm3} m³, amount ₱${amount.toFixed(2)})`
   );
   res.json({ success: true, consumption, amount, totalDue });
 });
@@ -738,7 +738,7 @@ router.post("/readings", authMiddleware("admin", ["officer"]), (req, res) => {
     `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, ?, ?, 'manual')`
   ).run(householdId, cm3, flowRate, flowType || "Normal");
 
-  recordAudit(req, "reading.manual_entry", householdId, `Manually recorded a ${cm3} CM³ reading for ${householdId}`);
+  recordAudit(req, "reading.manual_entry", householdId, `Manually recorded a ${cm3} m³ reading for ${householdId}`);
   res.json({ success: true });
 });
 

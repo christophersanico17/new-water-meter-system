@@ -145,7 +145,7 @@ export function BillReplica({ me, paymentStamp, period }) {
                 <td className="px-2 py-2 text-center text-slate-600 border-r border-slate-300 leading-tight text-[10px]">
                   PREVIOUS
                   <br />
-                  CONSUMED CM2
+                  CONSUMED m³
                   <br />
                   (MONTH OF {prevRec.period.split(" ")[0].toUpperCase()})
                 </td>
@@ -165,8 +165,8 @@ export function BillReplica({ me, paymentStamp, period }) {
           </table>
 
           <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 text-[10px] text-emerald-800">
-            <div>₱20.00 Per CM2</div>
-            <div>CC CM2= TCCM2-PC CM2</div>
+            <div>₱20.00 Per m³</div>
+            <div>CC m³= TCM³-PC m³</div>
           </div>
         </div>
 
@@ -191,7 +191,7 @@ export function BillReplica({ me, paymentStamp, period }) {
                 <th className="text-center font-semibold text-slate-600 px-2 py-1 border-l border-slate-300 text-[10px]">
                   CURRENT
                   <br />
-                  CONSUMED CM2
+                  CONSUMED m³
                   <br />({selectedPeriod.label.split(" ")[0].toUpperCase()})
                 </th>
                 <th className="text-center font-semibold text-slate-600 px-2 py-1 border-l border-slate-300 text-[10px]">

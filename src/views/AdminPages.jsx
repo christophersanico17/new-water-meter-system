@@ -192,11 +192,11 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage, onGene
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
         <div className="lg:col-span-2 card-hover bg-white rounded-lg border border-slate-200 p-4">
-          <div className="font-semibold text-[13px] text-slate-700 mb-3">Water consumption — Month of {periodLabel} (CM³) · top households</div>
+          <div className="font-semibold text-[13px] text-slate-700 mb-3">Water consumption — Month of {periodLabel} (m³) · top households</div>
           {anyData && top10.length === 0 ? (
             <div className="h-32 flex flex-col items-center justify-center text-center gap-1">
               <div className="text-[12px] text-slate-500">No usage recorded for {periodLabel} yet.</div>
-              <div className="text-[11px] text-slate-400">All {withUsage.length} households are at 0 CM³.</div>
+              <div className="text-[11px] text-slate-400">All {withUsage.length} households are at 0 m³.</div>
             </div>
           ) : anyData ? (
             <>
@@ -288,7 +288,7 @@ export function DashboardPage({ households, alerts, unpaidCount, setPage, onGene
               <th className="text-left px-3 py-2 font-semibold">Household</th>
               <th className="text-left px-3 py-2 font-semibold">Resident name</th>
               <th className="text-right px-3 py-2 font-semibold">Standpost #</th>
-              <th className="text-right px-3 py-2 font-semibold">Curr CM³</th>
+              <th className="text-right px-3 py-2 font-semibold">Curr m³</th>
               <th className="text-right px-3 py-2 font-semibold">Consumption</th>
               <th className="text-right px-3 py-2 font-semibold">Total amount</th>
               <th className="text-center px-3 py-2 font-semibold">Status</th>
@@ -391,8 +391,8 @@ export function ConsumptionPage({ households }) {
               <tr className="bg-[#1e3a5f] text-white">
                 <th className="text-left px-3 py-2 font-semibold">Household</th>
                 <th className="text-left px-3 py-2 font-semibold">Resident</th>
-                <th className="text-right px-3 py-2 font-semibold">Prev. CM³</th>
-                <th className="text-right px-3 py-2 font-semibold">Curr. CM³</th>
+                <th className="text-right px-3 py-2 font-semibold">Prev. m³</th>
+                <th className="text-right px-3 py-2 font-semibold">Curr. m³</th>
                 <th className="text-right px-3 py-2 font-semibold">Consumption</th>
                 <th className="text-right px-3 py-2 font-semibold">Flow (L/min)</th>
                 <th className="text-center px-3 py-2 font-semibold">Status</th>
@@ -641,7 +641,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
           )}
           <Btn onClick={() => window.print()}>Export PDF</Btn>
           <Btn onClick={() => {
-            const header = ["Bill #","Period","Household","Resident name","Standpost #","Meter #","Prev CM3","Curr CM3","Consumed","Total Amount","Method","Date paid","Status"];
+            const header = ["Bill #","Period","Household","Resident name","Standpost #","Meter #","Prev m³","Curr m³","Consumed","Total Amount","Method","Date paid","Status"];
             const rows = filteredBillingRecords.map((row, i) => [
               `BL-${String(i + 1).padStart(3, "0")}`,
               row.record.period,
@@ -720,8 +720,8 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Resident name</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Standpost #</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Meter #</th>
-              <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Prev CM³</th>
-              <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Curr CM³</th>
+              <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Prev m³</th>
+              <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Curr m³</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Consumed</th>
               <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Total Amt</th>
               <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Method</th>
@@ -841,9 +841,9 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-[11px] text-slate-500">
         <div className="font-semibold text-slate-600 mb-0.5">Billing formula & rate reference</div>
-        CC CM² = TCCM² − PC CM²  |  Rate: ₱20.00 per CM²  |  Minimum billing: ₱200.00  |  1 CM² = 1,000 liters
+        CC m³ = TCM³ − PC m³  |  Rate: ₱20.00 per m³  |  Minimum billing: ₱200.00  |  1 m³ = 1,000 liters
         <br />
-        CC CM² = Current Consumed CM²  |  TCCM² = Total Cumulative Meter Reading  |  PC CM² = Previous Consumed CM²
+        CC m³ = Current Consumed m³  |  TCM³ = Total Cumulative Meter Reading  |  PC m³ = Previous Consumed m³
       </div>
 
       {verifyGcash && (
@@ -1621,11 +1621,11 @@ function ManualReadingForm({ household, onSaved, showToast }) {
     setError("");
     const cm3 = Number(value);
     if (value.trim() === "" || !Number.isFinite(cm3) || cm3 < 0) {
-      setError("Enter the meter reading in CM³.");
+      setError("Enter the meter reading in m³.");
       return;
     }
     if (cm3 < household.currCm3) {
-      setError(`Cannot be lower than the last reading (${household.currCm3} CM³).`);
+      setError(`Cannot be lower than the last reading (${household.currCm3} m³).`);
       return;
     }
     setSaving(true);
@@ -1652,7 +1652,7 @@ function ManualReadingForm({ household, onSaved, showToast }) {
           inputMode="decimal"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={`Last: ${household.currCm3} CM³`}
+          placeholder={`Last: ${household.currCm3} m³`}
           className="w-44 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
         />
         <Btn onClick={save}>{saving ? "Saving…" : "Save reading"}</Btn>
@@ -1673,14 +1673,14 @@ function CorrectStartReadingForm({ household, onSaved, showToast }) {
     setError("");
     const prevCm3 = Number(value);
     if (value.trim() === "" || !Number.isFinite(prevCm3) || prevCm3 < 0) {
-      setError("Enter the starting reading in CM³.");
+      setError("Enter the starting reading in m³.");
       return;
     }
     if (!household.bill_id) {
       setError("This household has no bill to correct.");
       return;
     }
-    if (!window.confirm(`Set the starting reading to ${prevCm3} CM³ for ${household.id}? This recalculates the unpaid bill.`)) {
+    if (!window.confirm(`Set the starting reading to ${prevCm3} m³ for ${household.id}? This recalculates the unpaid bill.`)) {
       return;
     }
     setSaving(true);
@@ -1707,7 +1707,7 @@ function CorrectStartReadingForm({ household, onSaved, showToast }) {
           inputMode="decimal"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Starting CM³"
+          placeholder="Starting m³"
           className="w-44 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
         />
         <Btn onClick={save}>{saving ? "Saving…" : "Set starting reading"}</Btn>
@@ -2112,9 +2112,9 @@ export function HouseholdsPage({
                     })()}
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
                     <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-                      <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} CM³</span></div>
-                      <div>Previous reading: <span className="font-semibold text-slate-800">{fmtCm3(h.prevCm3)} CM³</span></div>
-                      <div>This cycle: <span className="font-semibold text-slate-800">{fmtCm3(h.consumption)} CM³</span></div>
+                      <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} m³</span></div>
+                      <div>Previous reading: <span className="font-semibold text-slate-800">{fmtCm3(h.prevCm3)} m³</span></div>
+                      <div>This cycle: <span className="font-semibold text-slate-800">{fmtCm3(h.consumption)} m³</span></div>
                       <div>Amount due: <span className="font-semibold text-slate-800">{peso(h.amount)}</span></div>
                       <div>Total due: <span className="font-semibold text-slate-800">{peso(h.totalDue)}</span></div>
                     </div>
@@ -2395,7 +2395,7 @@ export function RecordsPage({ households, showToast }) {
   const paidCount = allRecords.filter(({ record }) => record.paid).length;
   const unpaidCount = totalRecords - paidCount;
   function exportCsv() {
-    const header = ["Household", "Resident name", "Period", "Prev CM3", "Curr CM3", "Consumed", "Amount", "Status"];
+    const header = ["Household", "Resident name", "Period", "Prev m³", "Curr m³", "Consumed", "Amount", "Status"];
     const rows = filtered.map(({ household, record }) => [
       household.id,
       household.name,
@@ -2483,8 +2483,8 @@ export function RecordsPage({ households, showToast }) {
                 <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Household</th>
                 <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Resident name</th>
                 <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Period</th>
-                <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Prev CM³</th>
-                <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Curr CM³</th>
+                <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Prev m³</th>
+                <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Curr m³</th>
                 <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Consumed</th>
                 <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Amount</th>
                 <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">Status</th>
@@ -2550,7 +2550,7 @@ export function SettingsPage({ showToast, adminEmail }) {
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-slate-500">Rate per CM³</span>
+            <span className="text-slate-500">Rate per m³</span>
             {editing ? (
               <input
                 type="number"

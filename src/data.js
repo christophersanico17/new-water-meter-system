@@ -90,7 +90,7 @@ export function peso(n) {
   return "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// CM³ used in one billing record, rounded so float subtraction noise
+// m³ used in one billing record, rounded so float subtraction noise
 // (e.g. 24.4385 - 22 = 2.4385000000000012) never reaches the screen.
 export function usedCm3(rec) {
   return Math.round((rec.curr - rec.prev) * 10000) / 10000;
@@ -106,7 +106,7 @@ export function getConsumptionStatus(me) {
     return {
       level: "normal",
       label: "Normal usage",
-      message: `Your usage this cycle is ${me.consumption} CM³. We'll start comparing this against your average once more billing history is available.`,
+      message: `Your usage this cycle is ${me.consumption} m³. We'll start comparing this against your average once more billing history is available.`,
       tone: "good",
     };
   }
@@ -117,7 +117,7 @@ export function getConsumptionStatus(me) {
     return {
       level: "high",
       label: "High usage",
-      message: `Your usage this cycle (${me.consumption} CM³) is well above your average of ${avg.toFixed(0)} CM³. This could indicate a leak — please check your pipes and faucets.`,
+      message: `Your usage this cycle (${me.consumption} m³) is well above your average of ${avg.toFixed(0)} m³. This could indicate a leak — please check your pipes and faucets.`,
       tone: "bad",
     };
   }
@@ -126,7 +126,7 @@ export function getConsumptionStatus(me) {
     return {
       level: "elevated",
       label: "Above normal",
-      message: `Your usage this cycle (${me.consumption} CM³) is higher than your usual average of ${avg.toFixed(0)} CM³. Keep an eye on it over the next few days.`,
+      message: `Your usage this cycle (${me.consumption} m³) is higher than your usual average of ${avg.toFixed(0)} m³. Keep an eye on it over the next few days.`,
       tone: "warn",
     };
   }
@@ -134,7 +134,7 @@ export function getConsumptionStatus(me) {
   return {
     level: "normal",
     label: "Normal usage",
-    message: `Your usage this cycle (${me.consumption} CM³) is within your normal range (avg. ${avg.toFixed(0)} CM³).`,
+    message: `Your usage this cycle (${me.consumption} m³) is within your normal range (avg. ${avg.toFixed(0)} m³).`,
     tone: "good",
   };
 }
