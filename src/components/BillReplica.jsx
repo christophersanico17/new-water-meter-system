@@ -16,8 +16,10 @@ export function BillReplica({ me, paymentStamp, period }) {
   const idx = matchedIdx === -1 ? latestIdx : matchedIdx;
 
   const currentConsumed = me.history[idx];
-  const prevRec = me.history[idx - 1] || currentConsumed;
-  const prevConsumed = +(prevRec.curr - prevRec.prev).toFixed(0);
+  // No earlier bill: the previous box shows zero, not this bill repeated.
+  const hasPrev = idx > 0 && Boolean(me.history[idx - 1]);
+  const prevRec = hasPrev ? me.history[idx - 1] : { period: "", prev: 0, curr: 0, amt: 0 };
+  const prevConsumed = hasPrev ? +(prevRec.curr - prevRec.prev).toFixed(2) : 0;
   const currentCM2 = usedCm3(currentConsumed);
   const currentAmt = currentConsumed.amt;
 
@@ -147,7 +149,7 @@ export function BillReplica({ me, paymentStamp, period }) {
                   <br />
                   CONSUMED m³
                   <br />
-                  (MONTH OF {prevRec.period.split(" ")[0].toUpperCase()})
+                  {hasPrev ? `(MONTH OF ${prevRec.period.split(" ")[0].toUpperCase()})` : "(NO PREVIOUS BILL)"}
                 </td>
                 <td className="px-2 py-2 text-center text-slate-600 leading-tight text-[10px]">
                   PREVIOUS BILLING AMOUNT
