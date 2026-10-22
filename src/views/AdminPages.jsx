@@ -22,6 +22,7 @@ import {
   restoreHousehold,
   purgeDeletedHousehold,
   recordManualReading,
+  resetMeterReading,
   correctBillStartReading,
 } from "../api";
 
@@ -1662,6 +1663,57 @@ function ManualReadingForm({ household, onSaved, showToast }) {
   );
 }
 
+// Sets the household's reading to the value on the physical meter and removes
+// device readings above it, for when counting began from a wrong total.
+function ResetReadingForm({ household, onSaved, showToast }) {
+  const [value, setValue] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  async function save() {
+    setError("");
+    const cm3 = Number(value);
+    if (value.trim() === "" || !Number.isFinite(cm3) || cm3 < 0) {
+      setError("Enter the meter reading in m³.");
+      return;
+    }
+    if (!window.confirm(`Set ${household.id}'s reading to ${cm3} m³? Device readings above it will be removed.`)) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await resetMeterReading(household.id, cm3);
+      setValue("");
+      showToast?.(`Reading reset to ${cm3} m³ (${result.removed} device reading(s) removed).`, "success");
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <div className="text-xs font-semibold text-slate-500 mb-1.5">Reset to meter reading</div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Meter m³"
+          className="w-44 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+        />
+        <Btn onClick={save}>{saving ? "Saving…" : "Reset reading"}</Btn>
+      </div>
+      {error && <div className="text-xs text-rose-600 mt-1.5">{error}</div>}
+    </div>
+  );
+}
+
 // Sets the starting reading of the household's latest unpaid bill, for a system
 // that began counting after the meter already had a total.
 function CorrectStartReadingForm({ household, onSaved, showToast }) {
@@ -2141,6 +2193,7 @@ export function HouseholdsPage({
                     </div>
                     <ManualReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <CorrectStartReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
+                    <ResetReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <HouseholdEmailEditor household={h} onSave={onSetHouseholdEmail} />
                     {h.password && (
                       <div className="pt-1">

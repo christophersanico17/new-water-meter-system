@@ -383,6 +383,14 @@ export async function recordManualReading(householdId, cm3) {
   });
 }
 
+export async function resetMeterReading(householdId, cm3) {
+  return request(`/readings/reset`, {
+    method: "POST",
+    body: { householdId, cm3 },
+    auth: "admin",
+  });
+}
+
 export async function fetchLatestReading(meterNo) {
   return request(`/readings/latest/${encodeURIComponent(meterNo)}`, { auth: activeAuthRole() });
 }

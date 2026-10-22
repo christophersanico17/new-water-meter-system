@@ -755,6 +755,48 @@ router.post("/readings", authMiddleware("admin", ["officer"]), (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/readings/reset (admin/officer) — sets a household's meter reading to
+// the value read off the physical meter and deletes the device readings above
+// it, for when readings were counted from a wrong starting point. Body: { householdId, cm3 }
+router.post("/readings/reset", authMiddleware("admin", ["officer"]), (req, res) => {
+  const { householdId, cm3 } = req.body || {};
+  if (!householdId) {
+    return res.status(400).json({ error: "householdId is required." });
+  }
+  if (typeof cm3 !== "number" || !Number.isFinite(cm3) || cm3 < 0) {
+    return res.status(400).json({ error: "cm3 must be a non-negative number." });
+  }
+
+  const household = db.prepare("SELECT id FROM households WHERE id = ?").get(householdId);
+  if (!household) return res.status(404).json({ error: "Household not found." });
+
+  const openBill = db
+    .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
+    .get(householdId);
+  const billIsOpen = Boolean(openBill) && openBill.payment_status === "Unpaid";
+  if (billIsOpen && cm3 < openBill.prev_cm3) {
+    return res.status(400).json({ error: `Cannot be lower than the bill's starting reading (${openBill.prev_cm3} m³).` });
+  }
+
+  const removed = db.transaction(() => {
+    const deleted = db.prepare("DELETE FROM readings WHERE household_id = ? AND cm3 > ?").run(householdId, cm3);
+    db.prepare(
+      `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, 0, 'Normal', 'manual')`
+    ).run(householdId, cm3);
+    if (billIsOpen) {
+      const consumption = +(cm3 - openBill.prev_cm3).toFixed(4);
+      const amount = computeBillAmount(consumption);
+      const totalDue = +(amount + openBill.prev_balance).toFixed(2);
+      db.prepare("UPDATE bills SET curr_cm3 = ?, amount = ?, total_due = ? WHERE id = ?")
+        .run(cm3, amount, totalDue, openBill.id);
+    }
+    return deleted.changes;
+  })();
+
+  recordAudit(req, "reading.reset", householdId, `Reset ${householdId} meter reading to ${cm3} m³ (removed ${removed} device reading(s) above it)`);
+  res.json({ success: true, removed });
+});
+
 // ───────────────────────────────────────────────────────────
 // Alerts
 // ───────────────────────────────────────────────────────────
