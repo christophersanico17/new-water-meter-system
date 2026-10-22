@@ -39,6 +39,11 @@
 
 #include <WiFiUdp.h>
 
+// Some ESP32 boards don't define LED_BUILTIN; most DevKits put their LED on GPIO 2.
+#ifndef LED_BUILTIN
+  #define LED_BUILTIN 2
+#endif
+
 // ── Server discovery ────────────────────────────────────────
 // Filled in at runtime by discoverServer() (e.g. "http://192.168.254.144:4000")
 // rather than hardcoded, so the device keeps working when the PC running the
