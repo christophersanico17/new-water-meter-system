@@ -1480,6 +1480,7 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
   const [calibration, setCalibration] = useState(household.pulsesPerLiter);
   const [busy, setBusy] = useState(false);
   const [highFlow, setHighFlow] = useState(null);
+  const [confirmingKey, setConfirmingKey] = useState(false);
 
   // The household's own High Flow threshold, learned by the server from its
   // usage history. It moves slowly (days of data), so fetching it when the
@@ -1593,10 +1594,32 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
         <Btn variant="outline" onClick={handleSaveCalibration} disabled={busy}>Save</Btn>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Btn variant="outline" onClick={handleProvision} disabled={busy}>
-          {household.deviceProvisioned ? "Regenerate key" : "Generate device key"}
-        </Btn>
+      <div className="flex items-center gap-2 flex-wrap">
+        {confirmingKey ? (
+          <>
+            <span className="text-rose-600">Regenerate? The current key stops working until the device is updated.</span>
+            <Btn
+              onClick={() => {
+                setConfirmingKey(false);
+                handleProvision();
+              }}
+              disabled={busy}
+            >
+              Yes, regenerate
+            </Btn>
+            <Btn variant="ghostMuted" onClick={() => setConfirmingKey(false)} disabled={busy}>
+              Cancel
+            </Btn>
+          </>
+        ) : (
+          <Btn
+            variant="outline"
+            onClick={() => (household.deviceProvisioned ? setConfirmingKey(true) : handleProvision())}
+            disabled={busy}
+          >
+            {household.deviceProvisioned ? "Regenerate key" : "Generate device key"}
+          </Btn>
+        )}
         {household.deviceProvisioned && (
           <Btn variant="ghostMuted" onClick={handleRevoke} disabled={busy}>Revoke</Btn>
         )}
