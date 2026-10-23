@@ -1481,6 +1481,7 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
   const [busy, setBusy] = useState(false);
   const [highFlow, setHighFlow] = useState(null);
   const [confirmingKey, setConfirmingKey] = useState(false);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
 
   // The household's own High Flow threshold, learned by the server from its
   // usage history. It moves slowly (days of data), so fetching it when the
@@ -1620,9 +1621,25 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
             {household.deviceProvisioned ? "Regenerate key" : "Generate device key"}
           </Btn>
         )}
-        {household.deviceProvisioned && (
-          <Btn variant="ghostMuted" onClick={handleRevoke} disabled={busy}>Revoke</Btn>
-        )}
+        {household.deviceProvisioned && (confirmingRevoke ? (
+          <>
+            <span className="text-rose-600">Revoke? The device stops reporting until a new key is generated.</span>
+            <Btn
+              onClick={() => {
+                setConfirmingRevoke(false);
+                handleRevoke();
+              }}
+              disabled={busy}
+            >
+              Yes, revoke
+            </Btn>
+            <Btn variant="ghostMuted" onClick={() => setConfirmingRevoke(false)} disabled={busy}>
+              Cancel
+            </Btn>
+          </>
+        ) : (
+          <Btn variant="ghostMuted" onClick={() => setConfirmingRevoke(true)} disabled={busy}>Revoke</Btn>
+        ))}
       </div>
     </div>
   );
