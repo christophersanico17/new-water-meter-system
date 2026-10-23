@@ -1475,6 +1475,19 @@ function PerSecondUsageChart({ liters }) {
 
 // Provisioning + calibration UI for one household's Arduino/ESP flow-sensor
 // device. Lives inside the expanded household card in HouseholdsPage.
+// A boxed confirmation for actions that break the device until it is set up again.
+function ConfirmBox({ message, confirmLabel, onConfirm, onCancel, disabled }) {
+  return (
+    <div className="rounded-lg border border-rose-200 bg-white p-3 space-y-3">
+      <p className="text-sm text-rose-600">{message}</p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Btn onClick={onConfirm} disabled={disabled}>{confirmLabel}</Btn>
+        <Btn variant="ghostMuted" onClick={onCancel} disabled={disabled}>Cancel</Btn>
+      </div>
+    </div>
+  );
+}
+
 function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDeviceCalibration, showToast }) {
   const [revealedKey, setRevealedKey] = useState(null);
   const [calibration, setCalibration] = useState(household.pulsesPerLiter);
@@ -1595,51 +1608,52 @@ function DeviceManager({ household, onProvisionDevice, onRevokeDevice, onSetDevi
         <Btn variant="outline" onClick={handleSaveCalibration} disabled={busy}>Save</Btn>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {confirmingKey ? (
-          <>
-            <span className="text-rose-600">Regenerate? The current key stops working until the device is updated.</span>
-            <Btn
-              onClick={() => {
-                setConfirmingKey(false);
-                handleProvision();
-              }}
-              disabled={busy}
-            >
-              Yes, regenerate
-            </Btn>
-            <Btn variant="ghostMuted" onClick={() => setConfirmingKey(false)} disabled={busy}>
-              Cancel
-            </Btn>
-          </>
-        ) : (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+        <div className="text-xs font-semibold text-slate-500">Device key</div>
+
+        {confirmingKey && (
+          <ConfirmBox
+            message="Regenerate the key? The current key stops working until the device is updated."
+            confirmLabel="Yes, regenerate"
+            onConfirm={() => {
+              setConfirmingKey(false);
+              handleProvision();
+            }}
+            onCancel={() => setConfirmingKey(false)}
+            disabled={busy}
+          />
+        )}
+        {confirmingRevoke && (
+          <ConfirmBox
+            message="Revoke the key? The device stops reporting until a new key is generated."
+            confirmLabel="Yes, revoke"
+            onConfirm={() => {
+              setConfirmingRevoke(false);
+              handleRevoke();
+            }}
+            onCancel={() => setConfirmingRevoke(false)}
+            disabled={busy}
+          />
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2">
           <Btn
             variant="outline"
             onClick={() => (household.deviceProvisioned ? setConfirmingKey(true) : handleProvision())}
-            disabled={busy}
+            disabled={busy || confirmingKey || confirmingRevoke}
           >
             {household.deviceProvisioned ? "Regenerate key" : "Generate device key"}
           </Btn>
-        )}
-        {household.deviceProvisioned && (confirmingRevoke ? (
-          <>
-            <span className="text-rose-600">Revoke? The device stops reporting until a new key is generated.</span>
+          {household.deviceProvisioned && (
             <Btn
-              onClick={() => {
-                setConfirmingRevoke(false);
-                handleRevoke();
-              }}
-              disabled={busy}
+              variant="ghostMuted"
+              onClick={() => setConfirmingRevoke(true)}
+              disabled={busy || confirmingKey || confirmingRevoke}
             >
-              Yes, revoke
+              Revoke key
             </Btn>
-            <Btn variant="ghostMuted" onClick={() => setConfirmingRevoke(false)} disabled={busy}>
-              Cancel
-            </Btn>
-          </>
-        ) : (
-          <Btn variant="ghostMuted" onClick={() => setConfirmingRevoke(true)} disabled={busy}>Revoke</Btn>
-        ))}
+          )}
+        </div>
       </div>
     </div>
   );
