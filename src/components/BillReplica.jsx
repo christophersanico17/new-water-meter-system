@@ -87,7 +87,7 @@ export function BillReplica({ me, paymentStamp, period }) {
           <div className="flex gap-2 items-center">
             <span className="font-bold text-slate-700 w-16 flex-shrink-0 bg-yellow-200 px-1.5 py-0.5 rounded text-[10px] uppercase">Address</span>
             <span className="text-slate-700">
-              Purok {me.standpost % 9 || 5} Kinamlutan, Butuan City
+              {me.address || `Purok ${me.standpost % 9 || 5} Kinamlutan, Butuan City`}
             </span>
           </div>
         </div>
