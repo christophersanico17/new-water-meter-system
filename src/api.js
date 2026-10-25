@@ -486,9 +486,8 @@ export async function fetchDeviceStatus(householdId) {
   return request(`/households/${encodeURIComponent(householdId)}/device`, { auth: "admin" });
 }
 
-export async function fetchDailyUsage(householdId, month) {
-  const query = month ? `?month=${encodeURIComponent(month)}` : "";
-  return request(`/households/${encodeURIComponent(householdId)}/daily-usage${query}`, { auth: "admin" });
+export async function fetchDailyUsage(householdId) {
+  return request(`/households/${encodeURIComponent(householdId)}/daily-usage`, { auth: "admin" });
 }
 
 // Returns { success, deviceKey } — deviceKey is shown once, same as most

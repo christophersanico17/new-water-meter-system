@@ -1420,111 +1420,58 @@ function DeviceStatusBadge({ household }) {
 // Kept only in the browser, so it starts empty when the page loads.
 const PER_SECOND_SLOTS = 60;
 
-// Bar per day of one calendar month, labeled with its usage in m³, with a y-axis,
-// gridlines, and the month's average as a dashed line.
-const DAILY_CHART_COLORS = ["#22d3ee", "#60a5fa", "#a78bfa", "#f472b6", "#fb923c", "#facc15", "#4ade80"];
-
+// Bar per day of water used, with the average of those days as a dashed line.
 function DailyUsageChart({ householdId }) {
-  const [month, setMonth] = useState(null);
   const [usage, setUsage] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchDailyUsage(householdId, month)
+    fetchDailyUsage(householdId)
       .then((result) => {
-        if (!cancelled) {
-          setUsage(result);
-          setMonth(result.month);
-        }
+        if (!cancelled) setUsage(result);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [householdId, month]);
-
-  function shiftMonth(delta) {
-    if (!month) return;
-    const [year, mon] = month.split("-").map(Number);
-    const shifted = new Date(Date.UTC(year, mon - 1 + delta, 1));
-    setMonth(shifted.toISOString().slice(0, 7));
-  }
-
-  const monthLabel = month
-    ? new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-PH", { month: "long", year: "numeric", timeZone: "UTC" })
-    : "";
-
-  const header = (
-    <div className="flex items-center justify-between text-[11px] mb-2">
-      <div className="flex items-center gap-1">
-        <button type="button" onClick={() => shiftMonth(-1)} className="px-1.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50" aria-label="Previous month">‹</button>
-        <span className="font-medium text-slate-700 min-w-[110px] text-center">{monthLabel}</span>
-        <button type="button" onClick={() => shiftMonth(1)} className="px-1.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50" aria-label="Next month">›</button>
-      </div>
-      {usage && usage.days.length > 0 && (
-        <span className="text-slate-600">Average: {usage.average.toFixed(2)} m³ per day</span>
-      )}
-    </div>
-  );
+  }, [householdId]);
 
   if (!usage || !usage.days.length) {
     return (
-      <div className="rounded-lg border border-slate-100 px-3 py-2">
-        <div className="text-slate-500 font-medium text-[11px]">Daily usage (m³)</div>
-        {header}
-        <div className="text-[11px] text-slate-400">No readings for this month yet.</div>
+      <div className="rounded-lg border border-slate-100 px-3 py-2 text-[11px] text-slate-400">
+        Daily usage appears here once the sensor has reported for a day.
       </div>
     );
   }
 
-  const top = Math.max(1, Math.ceil(Math.max(...usage.days.map((d) => d.m3)) * 1.1));
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => +(top * f).toFixed(2));
-  const averageBottom = (usage.average / top) * 100;
+  const max = Math.max(0.01, ...usage.days.map((d) => d.m3));
+  const averageTop = (usage.average / max) * 100;
 
   return (
     <div className="rounded-lg border border-slate-100 px-3 py-2">
-      <div className="text-slate-500 font-medium text-[11px]">Daily usage (m³)</div>
-      {header}
-      <div className="flex gap-2">
-        <div className="flex flex-col justify-between h-44 text-[10px] text-slate-400 text-right w-8">
-          {[...ticks].reverse().map((t) => (
-            <span key={t}>{t}</span>
-          ))}
-        </div>
-        <div className="relative flex-1 h-44 border-l border-b border-slate-200">
-          {ticks.map((t) => (
-            <div
-              key={t}
-              className="absolute left-0 right-0 border-t border-slate-100"
-              style={{ bottom: `${(t / top) * 100}%` }}
-              aria-hidden="true"
-            />
-          ))}
-          <div className="absolute inset-0 flex items-end gap-[3px] px-[2px]">
-            {usage.days.map((d, i) => (
-              <div key={d.day} className="flex-1 h-full flex flex-col justify-end items-center" title={`${d.day}: ${d.m3.toFixed(2)} m³`}>
-                <span className="text-[9px] text-slate-600 mb-0.5">{d.m3.toFixed(1)}</span>
-                <div
-                  className="w-full rounded-t"
-                  style={{ height: `${(d.m3 / top) * 100}%`, backgroundColor: DAILY_CHART_COLORS[i % DAILY_CHART_COLORS.length] }}
-                />
-              </div>
-            ))}
-          </div>
-          <div
-            className="absolute left-0 right-0 border-t border-dashed border-rose-500 pointer-events-none"
-            style={{ bottom: `${averageBottom}%` }}
-            aria-hidden="true"
-          />
-        </div>
+      <div className="flex items-baseline justify-between text-[11px] mb-1.5">
+        <span className="text-slate-500 font-medium">Daily usage (m³)</span>
+        <span className="text-slate-600">Average: {usage.average.toFixed(2)} m³ per day</span>
       </div>
-      <div className="flex gap-2 mt-1">
-        <div className="w-8" />
-        <div className="flex-1 flex gap-[3px] px-[2px] text-[9px] text-slate-400">
-          {usage.days.map((d) => (
-            <span key={d.day} className="flex-1 text-center">{Number(d.day.slice(8, 10))}</span>
-          ))}
-        </div>
+      <div className="relative flex items-end gap-[3px] h-24 border-b border-slate-200">
+        {usage.days.map((d) => (
+          <div
+            key={d.day}
+            className="flex-1 h-full flex items-end"
+            title={`${d.day}: ${d.m3.toFixed(2)} m³`}
+          >
+            <div className="w-full rounded-t bg-sky-500" style={{ height: `${(d.m3 / max) * 100}%` }} />
+          </div>
+        ))}
+        <div
+          className="absolute left-0 right-0 border-t border-dashed border-rose-500 pointer-events-none"
+          style={{ bottom: `${averageTop}%` }}
+          aria-hidden="true"
+        />
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+        <span>{usage.days[0].day}</span>
+        <span>{usage.days[usage.days.length - 1].day}</span>
       </div>
     </div>
   );
