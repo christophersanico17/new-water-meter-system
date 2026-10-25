@@ -14,6 +14,7 @@ import {
   fetchAlertSettings,
   updateAlertSettingsApi,
   fetchDeviceStatus,
+  fetchDailyUsage,
   fetchAdminAccounts,
   createAdminAccount,
   deleteAdminAccount,
@@ -1419,6 +1420,63 @@ function DeviceStatusBadge({ household }) {
 // Kept only in the browser, so it starts empty when the page loads.
 const PER_SECOND_SLOTS = 60;
 
+// Bar per day of water used, with the average of those days as a dashed line.
+function DailyUsageChart({ householdId }) {
+  const [usage, setUsage] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDailyUsage(householdId)
+      .then((result) => {
+        if (!cancelled) setUsage(result);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [householdId]);
+
+  if (!usage || !usage.days.length) {
+    return (
+      <div className="rounded-lg border border-slate-100 px-3 py-2 text-[11px] text-slate-400">
+        Daily usage appears here once the sensor has reported for a day.
+      </div>
+    );
+  }
+
+  const max = Math.max(0.01, ...usage.days.map((d) => d.m3));
+  const averageTop = (usage.average / max) * 100;
+
+  return (
+    <div className="rounded-lg border border-slate-100 px-3 py-2">
+      <div className="flex items-baseline justify-between text-[11px] mb-1.5">
+        <span className="text-slate-500 font-medium">Daily usage (m³)</span>
+        <span className="text-slate-600">Average: {usage.average.toFixed(2)} m³ per day</span>
+      </div>
+      <div className="relative flex items-end gap-[3px] h-24 border-b border-slate-200">
+        {usage.days.map((d) => (
+          <div
+            key={d.day}
+            className="flex-1 h-full flex items-end"
+            title={`${d.day}: ${d.m3.toFixed(2)} m³`}
+          >
+            <div className="w-full rounded-t bg-sky-500" style={{ height: `${(d.m3 / max) * 100}%` }} />
+          </div>
+        ))}
+        <div
+          className="absolute left-0 right-0 border-t border-dashed border-rose-500 pointer-events-none"
+          style={{ bottom: `${averageTop}%` }}
+          aria-hidden="true"
+        />
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+        <span>{usage.days[0].day}</span>
+        <span>{usage.days[usage.days.length - 1].day}</span>
+      </div>
+    </div>
+  );
+}
+
 function PerSecondUsageChart({ liters }) {
   const [hovered, setHovered] = useState(null);
 
@@ -2217,6 +2275,7 @@ export function HouseholdsPage({
                       );
                     })()}
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
+                    {h.deviceProvisioned && <DailyUsageChart householdId={h.id} />}
                     <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
                       <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} m³</span></div>
                       <div>Previous reading: <span className="font-semibold text-slate-800">{fmtCm3(h.prevCm3)} m³</span></div>

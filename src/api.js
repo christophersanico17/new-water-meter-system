@@ -486,6 +486,10 @@ export async function fetchDeviceStatus(householdId) {
   return request(`/households/${encodeURIComponent(householdId)}/device`, { auth: "admin" });
 }
 
+export async function fetchDailyUsage(householdId) {
+  return request(`/households/${encodeURIComponent(householdId)}/daily-usage`, { auth: "admin" });
+}
+
 // Returns { success, deviceKey } — deviceKey is shown once, same as most
 // API-key UIs. Calling this again rotates the key and invalidates the old one.
 export async function provisionDevice(householdId) {

@@ -680,6 +680,29 @@ router.get("/readings", authMiddleware(), (req, res) => {
   res.json(rows);
 });
 
+// GET /api/households/:id/daily-usage (admin) — usage per day for the last 30 days
+// with days of readings. Readings are cumulative meter values, so a day's usage is
+// its highest reading minus the previous day's highest (or its lowest, for the first day).
+router.get("/households/:id/daily-usage", authMiddleware("admin"), (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT date(recorded_at, '+8 hours') AS day, MIN(cm3) AS lo, MAX(cm3) AS hi
+       FROM readings WHERE household_id = ? GROUP BY day ORDER BY day`
+    )
+    .all(req.params.id);
+
+  let previousHigh = null;
+  const days = rows.map((row) => {
+    const start = previousHigh ?? row.lo;
+    previousHigh = row.hi;
+    return { day: row.day, m3: +Math.max(0, row.hi - start).toFixed(4) };
+  });
+
+  const recent = days.slice(-30);
+  const average = recent.length ? +(recent.reduce((sum, d) => sum + d.m3, 0) / recent.length).toFixed(4) : 0;
+  res.json({ days: recent, average });
+});
+
 // GET /api/readings/latest/:meterNo — most recent reading for a meter.
 // Same ownership rule as above, resolved via the meter's owning household.
 router.get("/readings/latest/:meterNo", authMiddleware(), (req, res) => {
