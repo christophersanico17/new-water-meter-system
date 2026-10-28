@@ -27,15 +27,14 @@
 #define DEVICE_KEY "dev_paste_your_device_key_here"
 
 // ── Flow sensor ──────────────────────────────────────────────
-// GPIO pin the sensor's yellow/signal wire is connected to. Must support
-// interrupts (on ESP8266, avoid GPIO16/D0 — it can't). Common choices:
-//   NodeMCU / Wemos D1 Mini: D5 (GPIO14) or D6 (GPIO12)
-//   ESP32 dev board:         GPIO27 or GPIO26
-#define FLOW_SENSOR_PIN D5
+// GPIO pin the sensor's signal wire is connected to. Must support interrupts.
+// Common choices:
+//   ESP32 dev board (ESP-WROOM-32 DevKit V1): GPIO27 or GPIO26
+//   NodeMCU / Wemos D1 Mini (ESP8266):        D5 (GPIO14) or D6 (GPIO12)
+#define FLOW_SENSOR_PIN 27
 
-// How often to report, in milliseconds. 15 seconds keeps the dashboard
-// feeling live while keeping requests (and the ngrok free plan's monthly
-// quota) and database rows moderate; each report also carries per-second
-// counts for the dashboard's per-second chart. The server accepts up to 120
-// per-second samples, so keep this at 120000 or less.
-#define REPORT_INTERVAL_MS 15000
+// How often to report, in milliseconds. 5 seconds keeps the dashboard live.
+// Each report also carries per-second counts for the dashboard's per-second
+// chart. The server accepts up to 120 per-second samples, so keep this at
+// 120000 or less.
+#define REPORT_INTERVAL_MS 5000
