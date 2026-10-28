@@ -235,3 +235,22 @@ body {
     zoom: 0.7;
   }
 }
+
+/* Keep the two printed bills centered one above the other. */
+@media print {
+  .print-bill-page .print-bill-item {
+    display: block;
+    width: 100%;
+  }
+
+  .print-bill-page .bill-replica {
+    width: 100%;
+    max-width: 7.5in;
+    margin: 0 auto;
+  }
+
+  .print-bill-page .bill-separator {
+    margin-top: 6px;
+    width: 100%;
+  }
+}
