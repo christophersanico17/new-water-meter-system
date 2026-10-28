@@ -178,3 +178,48 @@ body {
   margin: 0;
   size: letter portrait;
 }
+
+/* Admin bill statements: two bills side by side on a landscape sheet, so each
+   bill can be wider than when two were stacked on a portrait page. The named
+   page keeps resident single-bill printing in portrait. */
+@media print {
+  @page bills-landscape {
+    size: A4 landscape;
+    margin: 0.3in;
+  }
+
+  .print-bills-grid {
+    page: bills-landscape;
+  }
+
+  .print-bill-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25in;
+    width: 100%;
+    padding: 0;
+  }
+
+  .print-bill-page .print-bill-item {
+    zoom: 1;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 0.1in 0;
+  }
+
+  .print-bill-page .print-bill-item:first-child {
+    border-right: 1px dashed #94a3b8;
+    padding-right: 0.1in;
+  }
+
+  .print-bill-page .bill-separator {
+    display: none !important;
+  }
+
+  .print-bill-page .bill-replica {
+    zoom: 0.7;
+    max-width: 7.5in;
+    width: 100%;
+  }
+}
