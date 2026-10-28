@@ -133,7 +133,14 @@ router.patch("/residents/:id", authMiddleware("resident"), (req, res) => {
   const household = db.prepare("SELECT id FROM households WHERE id = ?").get(req.params.id);
   if (!household) return res.status(404).json({ error: "Household not found." });
 
-  const { name, address, phone, email, currentPassword, newPassword } = req.body || {};
+  const { name, address, phone, email, meter, currentPassword, newPassword } = req.body || {};
+
+  if (meter !== undefined) {
+    const cleanMeter = String(meter).trim();
+    if (!cleanMeter || cleanMeter.length > 40) {
+      return res.status(400).json({ error: "Enter the meter serial number (up to 40 characters)." });
+    }
+  }
 
   if (newPassword) {
     const account = db.prepare("SELECT password_hash FROM resident_accounts WHERE household_id = ?").get(req.params.id);
@@ -152,9 +159,10 @@ router.patch("/residents/:id", authMiddleware("resident"), (req, res) => {
        name = COALESCE(?, name),
        address = COALESCE(?, address),
        phone = COALESCE(?, phone),
-       email = COALESCE(?, email)
+       email = COALESCE(?, email),
+       meter = COALESCE(?, meter)
      WHERE id = ?`
-  ).run(name ?? null, address ?? null, phone ?? null, email ?? null, req.params.id);
+  ).run(name ?? null, address ?? null, phone ?? null, email ?? null, meter === undefined ? null : String(meter).trim(), req.params.id);
 
   res.json({ success: true });
 });
