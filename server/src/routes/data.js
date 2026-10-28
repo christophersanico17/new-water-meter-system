@@ -133,14 +133,7 @@ router.patch("/residents/:id", authMiddleware("resident"), (req, res) => {
   const household = db.prepare("SELECT id FROM households WHERE id = ?").get(req.params.id);
   if (!household) return res.status(404).json({ error: "Household not found." });
 
-  const { name, address, phone, email, meter, currentPassword, newPassword } = req.body || {};
-
-  if (meter !== undefined) {
-    const cleanMeter = String(meter).trim();
-    if (!cleanMeter || cleanMeter.length > 40) {
-      return res.status(400).json({ error: "Enter the meter serial number (up to 40 characters)." });
-    }
-  }
+  const { name, address, phone, email, currentPassword, newPassword } = req.body || {};
 
   if (newPassword) {
     const account = db.prepare("SELECT password_hash FROM resident_accounts WHERE household_id = ?").get(req.params.id);
@@ -159,11 +152,28 @@ router.patch("/residents/:id", authMiddleware("resident"), (req, res) => {
        name = COALESCE(?, name),
        address = COALESCE(?, address),
        phone = COALESCE(?, phone),
-       email = COALESCE(?, email),
-       meter = COALESCE(?, meter)
+       email = COALESCE(?, email)
      WHERE id = ?`
-  ).run(name ?? null, address ?? null, phone ?? null, email ?? null, meter === undefined ? null : String(meter).trim(), req.params.id);
+  ).run(name ?? null, address ?? null, phone ?? null, email ?? null, req.params.id);
 
+  res.json({ success: true });
+});
+
+// PUT /api/residents/:id/meter  (officer only) — set a household's meter number.
+// Meter numbers identify the physical meter, so only an officer may change them,
+// and no two households may share one.
+router.put("/residents/:id/meter", authMiddleware("admin", ["officer"]), (req, res) => {
+  const meter = typeof req.body?.meter === "string" ? req.body.meter.trim() : "";
+  if (!meter || meter.length > 40) {
+    return res.status(400).json({ error: "Enter the meter number (up to 40 characters)." });
+  }
+  const household = db.prepare("SELECT id FROM households WHERE id = ?").get(req.params.id);
+  if (!household) return res.status(404).json({ error: "Household not found." });
+  const taken = db.prepare("SELECT id FROM households WHERE meter = ? AND id != ?").get(meter, req.params.id);
+  if (taken) return res.status(400).json({ error: "Another household already uses this meter number." });
+
+  db.prepare("UPDATE households SET meter = ? WHERE id = ?").run(meter, req.params.id);
+  recordAudit(req, "household.meter_update", req.params.id, `Set meter number of ${req.params.id} to ${meter}`);
   res.json({ success: true });
 });
 

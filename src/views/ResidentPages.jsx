@@ -1467,31 +1467,6 @@ export function ResidentPayments({ me, startGcashPayment }) {
 // ─────────────────────────────────────────────────────────────
 export function ResidentProfile({ me, onUpdateProfile }) {
   const [editing, setEditing] = useState(false);
-  const [editingMeter, setEditingMeter] = useState(false);
-  const [meterValue, setMeterValue] = useState(me.meter || "");
-  const [meterError, setMeterError] = useState("");
-  const [meterSaving, setMeterSaving] = useState(false);
-
-  async function handleSaveMeter() {
-    setMeterError("");
-    const clean = meterValue.trim();
-    if (!clean) {
-      setMeterError("Enter the meter serial number.");
-      return;
-    }
-    if (typeof onUpdateProfile !== "function") return;
-    setMeterSaving(true);
-    try {
-      const result = await onUpdateProfile(me.id, { meter: clean });
-      if (!result || !result.success) {
-        setMeterError((result && result.message) || "Could not save the meter serial number.");
-        return;
-      }
-      setEditingMeter(false);
-    } finally {
-      setMeterSaving(false);
-    }
-  }
 
   // Only real values on file — never invented ones. A made-up email here
   // would be saved on the next Save and then receive this household's
@@ -1687,36 +1662,6 @@ export function ResidentProfile({ me, onUpdateProfile }) {
           <div className="text-[13px] font-semibold text-slate-700">Meter & Connection Info</div>
         </div>
         <div className="px-4 py-4 grid grid-cols-2 gap-4 text-[12px]">
-          <div>
-            <div className="text-[11px] text-slate-500 mb-0.5 flex items-center justify-between">
-              <span>Meter Number</span>
-              {!editingMeter && (
-                <button onClick={() => { setMeterValue(me.meter || ""); setEditingMeter(true); }} className="text-[#0072CE] font-semibold">
-                  Edit
-                </button>
-              )}
-            </div>
-            {editingMeter ? (
-              <div className="space-y-1.5">
-                <input
-                  value={meterValue}
-                  onChange={(e) => setMeterValue(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-[12px]"
-                />
-                <div className="flex gap-2">
-                  <button onClick={handleSaveMeter} disabled={meterSaving} className="text-[11px] bg-[#0072CE] text-white font-semibold px-2.5 py-1 rounded-md">
-                    {meterSaving ? "Saving…" : "Save"}
-                  </button>
-                  <button onClick={() => { setEditingMeter(false); setMeterError(""); }} className="text-[11px] text-slate-600 px-2 py-1">
-                    Cancel
-                  </button>
-                </div>
-                {meterError && <div className="text-[11px] text-rose-600">{meterError}</div>}
-              </div>
-            ) : (
-              <div className="font-semibold text-slate-800">{me.meter}</div>
-            )}
-          </div>
           {[
             { label: "Standpost Number", value: `#${me.standpost}` },
             { label: "Date of Connection", value: formatDueDate(me.dateConnected) },

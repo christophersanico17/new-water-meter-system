@@ -185,6 +185,15 @@ export async function residentForgotPassword(householdId) {
   });
 }
 
+// Officer sets a household's meter number.
+export async function setHouseholdMeter(householdId, meter) {
+  return request(`/residents/${encodeURIComponent(householdId)}/meter`, {
+    method: "PUT",
+    body: { meter },
+    auth: "admin",
+  });
+}
+
 // Officer sets the email on file for a household (where its account codes
 // are sent). An empty string clears it.
 export async function setHouseholdEmail(householdId, email) {

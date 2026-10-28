@@ -23,6 +23,7 @@ import {
   purgeDeletedHousehold,
   recordManualReading,
   resetMeterReading,
+  setHouseholdMeter,
   correctBillStartReading,
 } from "../api";
 
@@ -1717,6 +1718,61 @@ function ManualReadingForm({ household, onSaved, showToast }) {
   );
 }
 
+// Officer-only: changes a household's meter number. Residents cannot do this.
+function MeterNumberForm({ household, onSaved, showToast }) {
+  const [value, setValue] = React.useState("");
+  const [editing, setEditing] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  async function save() {
+    setError("");
+    const clean = value.trim();
+    if (!clean) {
+      setError("Enter the meter number.");
+      return;
+    }
+    if (!window.confirm(`Change ${household.id}'s meter number from ${household.meter} to ${clean}?`)) return;
+    setSaving(true);
+    try {
+      await setHouseholdMeter(household.id, clean);
+      setEditing(false);
+      showToast?.(`Meter number updated for ${household.id}.`, "success");
+      onSaved?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setValue(household.meter || ""); setEditing(true); }}
+        className="text-[11px] text-sky-700 font-semibold"
+      >
+        Edit meter number
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-40 border border-slate-300 rounded-lg px-2 py-1 text-[12px]"
+        />
+        <Btn onClick={save}>{saving ? "Saving…" : "Save"}</Btn>
+        <Btn variant="ghostMuted" onClick={() => { setEditing(false); setError(""); }}>Cancel</Btn>
+      </div>
+      {error && <div className="text-[11px] text-rose-600">{error}</div>}
+    </div>
+  );
+}
+
 // Sets the household's reading to the value on the physical meter and removes
 // device readings above it, for when counting began from a wrong total.
 function ResetReadingForm({ household, onSaved, showToast }) {
@@ -2164,7 +2220,8 @@ export function HouseholdsPage({
                     <div>Control Number: <span className="text-slate-700 font-medium">{h.id}</span></div>
                     <div>Purok: <span className="text-slate-700 font-medium">{householdPurok(h)}</span></div>
                     <div>Standpost #: <span className="text-slate-700 font-medium">{h.standpost}</span></div>
-                    <div>Meter serial #: <span className="text-slate-700 font-medium">{h.meter}</span></div>
+                    <div>Meter number: <span className="text-slate-700 font-medium">{h.meter}</span></div>
+                    <MeterNumberForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                   </div>
                 </button>
 
