@@ -230,6 +230,9 @@ function initSchema() {
   if (!billColumns.includes("payment_rejection_reason")) {
     db.exec("ALTER TABLE bills ADD COLUMN payment_rejection_reason TEXT");
   }
+  if (!billColumns.includes("gcash_fee")) {
+    db.exec("ALTER TABLE bills ADD COLUMN gcash_fee REAL NOT NULL DEFAULT 0");
+  }
 
   // One-time email codes for resident account setup / password reset
   // (see utils/verificationCodes.js).
