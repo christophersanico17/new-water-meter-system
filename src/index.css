@@ -136,8 +136,8 @@ body {
     width: 100%;
     max-width: none;
     margin: 0;
-    /* Two statements per A4 sheet: each one is shrunk so both fit on the page. */
-    zoom: 0.8;
+    /* Two statements per A4 sheet: each one is shrunk slightly so both fit on the page. */
+    zoom: 0.9;
   }
 
   .print-bill-page .print-bill-item {
@@ -157,7 +157,7 @@ body {
      covers the browsers this app's print flow is built/tested against. */
   .print-bill-page .bill-replica {
     transform: none !important;
-    zoom: 0.62;
+    zoom: 0.66;
     min-height: 0;
     max-width: none;
   }
