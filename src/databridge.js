@@ -9,7 +9,7 @@ const RATE_PER_CM3 = 20;
 const MIN_BILL = 200;
 
 function peso(n) {
-  return "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function computeBill(consumptionCm3) {

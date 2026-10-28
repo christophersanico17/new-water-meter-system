@@ -1158,7 +1158,7 @@ export function ResidentBills({ me, setPage, startGcashPayment }) {
                   </div>
                   <div className="flex items-center gap-0.5 flex-shrink-0">
                     <span className="text-[13px] font-bold text-slate-700">
-                      ₱{period.amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                      ₱{period.amount.toLocaleString("en-PH", { maximumFractionDigits: 0 })}
                     </span>
                     <svg
                       className="w-4 h-4 text-slate-400"

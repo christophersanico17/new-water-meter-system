@@ -41,10 +41,10 @@ test("correcting the starting reading recalculates the latest unpaid bill", asyn
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.consumption, 16.39);
-  assert.equal(body.amount, 327.8);
+  assert.equal(body.amount, 328);
 
   const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
   assert.equal(bill.prev_cm3, 321);
   assert.equal(bill.curr_cm3, 337.39);
-  assert.equal(bill.total_due, 327.8);
+  assert.equal(bill.total_due, 328);
 });

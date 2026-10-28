@@ -87,7 +87,7 @@ export function isOverdue(household) {
 }
 
 export function peso(n) {
-  return "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 // m³ used in one billing record, rounded so float subtraction noise

@@ -285,8 +285,9 @@ const RATE_PER_CM3 = 20;
 const MIN_BILL = 200;
 const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+// Bills are whole pesos: the amount is rounded up to the next peso.
 function computeBillAmount(consumptionCm3) {
-  return +Math.max(consumptionCm3 * RATE_PER_CM3, MIN_BILL).toFixed(2);
+  return Math.ceil(Math.max(consumptionCm3 * RATE_PER_CM3, MIN_BILL));
 }
 
 // Built as a plain "YYYY-MM-DD" string with no Date/toISOString round-trip —
