@@ -1689,7 +1689,7 @@ export function ResidentProfile({ me, onUpdateProfile }) {
         <div className="px-4 py-4 grid grid-cols-2 gap-4 text-[12px]">
           <div>
             <div className="text-[11px] text-slate-500 mb-0.5 flex items-center justify-between">
-              <span>Meter Serial #</span>
+              <span>Meter Number</span>
               {!editingMeter && (
                 <button onClick={() => { setMeterValue(me.meter || ""); setEditingMeter(true); }} className="text-[#0072CE] font-semibold">
                   Edit
