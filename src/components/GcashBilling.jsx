@@ -1,7 +1,7 @@
 import React from "react";
 import { peso } from "../data";
 
-export function GcashBillingSection({ me, onPay, onCash }) {
+export function GcashBillingSection({ me, onPay }) {
   const isPaid = me.paymentStatus === "Paid";
   const isGcashPending = me.paymentStatus === "GCash Pending";
   const isCashPending = me.paymentStatus === "Cash Pending";
@@ -49,14 +49,6 @@ export function GcashBillingSection({ me, onPay, onCash }) {
               >
                 {isPaid ? "No payment due" : hasNoBill ? "No bill yet" : "Pay with GCash QR (adds ₱10.00 service fee)"}
               </button>
-              {!isPaid && !hasNoBill && onCash && (
-                <button
-                  onClick={() => onCash(me.id)}
-                  className="w-full mt-2 flex items-center justify-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm py-2.5 rounded-lg transition"
-                >
-                  Pay in cash at the barangay office
-                </button>
-              )}
             </>
           )}
         </div>
