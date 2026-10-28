@@ -13,10 +13,10 @@ const ALERT_SETTINGS_DEFAULTS = {
   highFlowLearnMultiplier: 1.5, // threshold = household's typical peak flow × this
   highFlowMinSamples: 20, // flowing readings needed before learning kicks in (~5 min of use at 15s reports)
   highFlowMaxLpm: 30, // learning never raises the threshold above this (the flow sensor's rated maximum; see the datasheet)
-  // Anything faster than this can't be real water through a household sensor
-  // (faster than the flow sensor can measure) — it's electrical noise, e.g. a
-  // loose signal wire. Such readings are discarded instead of billed.
-  maxPlausibleFlowLpm: 35, // the flow sensor reads only up to its rated maximum, so anything well above that is noise
+  // Anything faster than this is above the flow sensor's rated maximum (30 L/min),
+  // so it can't be real water through a household sensor — it's electrical noise,
+  // e.g. a loose signal wire. Such readings are discarded instead of billed.
+  maxPlausibleFlowLpm: 30, // the flow sensor's rated maximum
   leakFlowLpm: 2, // low but non-zero — the signature of a persistent drip/leak
   leakSustainedMinutes: 15, // ...if it's been continuous for this long, it's a leak
   leakMaxGapMinutes: 5, // a gap bigger than this breaks a leak streak
