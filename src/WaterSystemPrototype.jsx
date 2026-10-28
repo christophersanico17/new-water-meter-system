@@ -9,7 +9,7 @@ import {
   getToken, adminLogin, adminLogout,
   fetchResidents, fetchBills, generateBills,
   fetchLatestReading,
-  submitGcashReference, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
+  submitGcashReference, initiateGcash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
   residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
   createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
@@ -848,7 +848,18 @@ export default function WaterSystemPrototype() {
   }
 
   // ── GCash QR payment ────────────────────────────────────────────
-  function startGcashPayment(id) {
+  async function startGcashPayment(id) {
+    // Starting a GCash payment adds the GCash service fee to the bill on the
+    // server, so reload the bill first and the modal shows the amount to pay.
+    const household = households.find((h) => h.id === id);
+    if (USE_API && household?.bill_id) {
+      try {
+        await initiateGcash(household.bill_id);
+        await loadFromAPI(true);
+      } catch (err) {
+        console.error("Could not start GCash payment:", err);
+      }
+    }
     setPaymentModal(id);
     setPaymentStep("confirm");
   }
