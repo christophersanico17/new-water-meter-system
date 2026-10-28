@@ -195,3 +195,43 @@ body {
     width: 100%;
   }
 }
+
+/* Admin two-per-page statements: tighten the vertical spacing inside the bill
+   while printing, so each bill is shorter and can be printed larger. Screen
+   layout is unchanged. */
+@media print {
+  .print-bill-page .bill-replica .py-4,
+  .print-bill-page .bill-replica .py-2\.5,
+  .print-bill-page .bill-replica .py-2,
+  .print-bill-page .bill-replica .py-1\.5,
+  .print-bill-page .bill-replica .py-1 {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .print-bill-page .bill-replica .py-0\.5 {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .print-bill-page .bill-replica .mt-3,
+  .print-bill-page .bill-replica .mt-1,
+  .print-bill-page .bill-replica .space-y-1\.5 > * + * {
+    margin-top: 2px !important;
+  }
+
+  .print-bill-page .bill-replica .h-8,
+  .print-bill-page .bill-replica .h-3 {
+    height: 6px !important;
+  }
+
+  .print-bill-page .bill-replica,
+  .print-bill-page .bill-replica td,
+  .print-bill-page .bill-replica th {
+    line-height: 1.2 !important;
+  }
+
+  .print-bill-page .bill-replica {
+    zoom: 0.7;
+  }
+}
