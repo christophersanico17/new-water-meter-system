@@ -35,7 +35,9 @@ export function BillReplica({ me, paymentStamp, period }) {
       amount: rec.amt,
     }));
 
-  const totalAmount = [...balanceRows.map((r) => r.amount), currentAmt].reduce((s, v) => s + v, 0);
+  // GCash service fee on the viewed bill (zero for cash or a bill not yet paid by GCash).
+  const gcashFee = currentConsumed.fee || 0;
+  const totalAmount = [...balanceRows.map((r) => r.amount), currentAmt, gcashFee].reduce((s, v) => s + v, 0);
 
   const selectedPeriod = period || { label: currentConsumed.period };
 
@@ -213,6 +215,16 @@ export function BillReplica({ me, paymentStamp, period }) {
                   {peso(currentAmt)}
                 </td>
               </tr>
+              {gcashFee > 0 && (
+                <tr className="border-t border-slate-100">
+                  <td colSpan={2} className="px-2 py-1 text-slate-600 text-[11px]">
+                    GCash service fee
+                  </td>
+                  <td className="px-2 py-1 text-right text-slate-700 border-l border-slate-200 pr-3">
+                    {peso(gcashFee)}
+                  </td>
+                </tr>
+              )}
               <tr className="bg-yellow-100 border-t border-slate-300">
                 <td
                   colSpan={3}

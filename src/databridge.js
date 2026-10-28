@@ -30,6 +30,7 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     prev: b.prev_cm3,
     curr: b.curr_cm3,
     amt: b.amount,
+    fee: b.gcash_fee || 0,
     paid: b.payment_status === "Paid",
     method: b.payment_method,
     paidDate: b.payment_date,
