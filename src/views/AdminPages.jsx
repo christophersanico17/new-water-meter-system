@@ -2221,12 +2221,12 @@ export function HouseholdsPage({
                     <div>Purok: <span className="text-slate-700 font-medium">{householdPurok(h)}</span></div>
                     <div>Standpost #: <span className="text-slate-700 font-medium">{h.standpost}</span></div>
                     <div>Meter number: <span className="text-slate-700 font-medium">{h.meter}</span></div>
-                    <MeterNumberForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                   </div>
                 </button>
 
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-slate-100 text-[13px] text-slate-600 space-y-2.5">
+                    <MeterNumberForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <div className="flex justify-end">
                       <button
                         type="button"
