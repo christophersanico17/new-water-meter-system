@@ -71,6 +71,10 @@ function residentRow(h) {
     device_provisioned: Boolean(h.device_key),
     device_last_seen: h.device_last_seen,
     pulses_per_liter: h.pulses_per_liter,
+    // Most recent reading where water was actually flowing (flow > 0).
+    last_flow: db
+      .prepare("SELECT flow_rate, recorded_at FROM readings WHERE household_id = ? AND flow_rate > 0 ORDER BY recorded_at DESC LIMIT 1")
+      .get(h.id) || null,
   };
 }
 

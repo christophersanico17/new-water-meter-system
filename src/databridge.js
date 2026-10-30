@@ -97,6 +97,9 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     lastFlow: reading ? reading.flow_rate : 0,
     flowType: reading ? reading.flow_type : "Normal",
     lastReadingAt: reading ? reading.recorded_at : null,
+    lastWaterFlow: resident.last_flow
+      ? { flowRate: resident.last_flow.flow_rate, at: resident.last_flow.recorded_at }
+      : null,
 
     // IoT device (Arduino/ESP + flow sensor) status — non-secret fields from
     // GET /api/residents; the device key itself is only ever fetched/shown

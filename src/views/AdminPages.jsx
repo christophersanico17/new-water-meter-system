@@ -2273,6 +2273,21 @@ export function HouseholdsPage({
                         </div>
                       );
                     })()}
+                    <div className="text-[12px] text-slate-500">
+                      Last water flow:{" "}
+                      {h.lastWaterFlow ? (
+                        <span className="font-semibold text-slate-700">
+                          {h.lastWaterFlow.flowRate.toFixed(1)} L/min at{" "}
+                          {new Date(h.lastWaterFlow.at.replace(" ", "T") + "Z").toLocaleString("en-PH", {
+                            timeZone: "Asia/Manila",
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">no water flow recorded yet</span>
+                      )}
+                    </div>
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
                     <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
                       <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} m³</span></div>
