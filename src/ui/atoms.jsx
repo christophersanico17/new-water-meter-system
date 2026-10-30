@@ -25,9 +25,9 @@ export function StatCard({ label, value, tone = "default", accent }) {
   };
 
   return (
-    <div className={`card-hover bg-white rounded-lg border ${accent ? `border-t-2 ${accent}` : "border-slate-200"} px-4 py-3 flex-1 min-w-[130px]`}>
-      <div className="text-[11px] text-slate-500 font-medium">{label}</div>
-      <div className={`text-xl font-bold mt-1 ${toneClasses[tone]}`}>{value}</div>
+    <div className={`card-hover bg-white rounded-lg border ${accent ? `border-t-2 ${accent}` : "border-slate-200"} px-3 py-2 sm:px-4 sm:py-3 flex-1 min-w-[110px]`}>
+      <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-tight">{label}</div>
+      <div className={`text-base sm:text-xl font-bold mt-0.5 sm:mt-1 ${toneClasses[tone]}`}>{value}</div>
     </div>
   );
 }

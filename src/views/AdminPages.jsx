@@ -674,7 +674,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
         </div>
       </div>
 
-      <div className="flex gap-3 flex-wrap mb-4">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3 mb-4">
         <StatCard label="Total households" value={households.length} />
         <StatCard label="Bills generated" value={billingRecords.length} />
         <StatCard label="Paid" value={paidCount} tone="good" />
@@ -684,12 +684,12 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
         <StatCard label="Overdue" value={overdueCount} tone="bad" />
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 sm:flex-wrap">
         {['All', 'Paid', 'GCash Pending', 'Cash Pending', 'Unpaid', 'Overdue'].map((status) => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
-            className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition ${
+            className={`shrink-0 whitespace-nowrap text-[12px] font-semibold px-3.5 py-2 min-h-[36px] rounded-full border transition ${
               statusFilter === status
                 ? status === 'Paid'
                   ? 'bg-emerald-600 text-white border-emerald-600'
