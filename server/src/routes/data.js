@@ -336,12 +336,25 @@ function detectAbnormalConsumption(householdId, consumption, priorBills) {
 // POST /api/bills/generate  (admin only) — generate one bill per household for
 // a given period, from each household's latest reading vs. their latest bill.
 // Households that already have a bill for this period are skipped (idempotent).
-router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) => {
-  const { period } = req.body || {};
-  if (!period || !dueDateForPeriod(period)) {
-    return res.status(400).json({ error: "A valid period (e.g. 'Jun 2026') is required." });
-  }
+// Billing periods close at the last second of their month, in Philippine time
+// (UTC+8). A bill uses the last reading taken at or before that moment.
+const PH_OFFSET_MS = 8 * 60 * 60 * 1000;
 
+function sqlUtc(date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+// Reading cutoff for a period: its last second, or now if the month is still open.
+function periodCutoffUtc(period) {
+  const [monthName, yearText] = period.split(" ");
+  const monthIndex = MONTH_SHORT_NAMES.indexOf(monthName);
+  const endMs = Date.UTC(Number(yearText), monthIndex + 1, 1) - PH_OFFSET_MS - 1000;
+  return sqlUtc(new Date(Math.min(endMs, Date.now())));
+}
+
+// Creates one bill per household for the period (skips households already billed).
+function generateBillsForPeriod(period, req) {
+  const cutoff = periodCutoffUtc(period);
   const households = db.prepare("SELECT id FROM households ORDER BY id").all();
   const insertBill = db.prepare(
     `INSERT INTO bills (household_id, period, prev_cm3, curr_cm3, amount, prev_balance, total_due, payment_status, due_date)
@@ -365,8 +378,8 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
       // Only bill what the meter actually recorded. A household with no
       // reading yet gets no bill — never a made-up current reading.
       const latestReading = db
-        .prepare("SELECT * FROM readings WHERE household_id = ? ORDER BY recorded_at DESC LIMIT 1")
-        .get(h.id);
+        .prepare("SELECT * FROM readings WHERE household_id = ? AND recorded_at <= ? ORDER BY recorded_at DESC LIMIT 1")
+        .get(h.id, cutoff);
       if (!latestReading) {
         noReading++;
         continue;
@@ -395,8 +408,34 @@ router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) 
   tx();
 
   recordAudit(req, "bill.generate", period, `Generated ${created} bill(s) for ${period}${skipped ? `, skipped ${skipped} already billed` : ""}${noReading ? `, skipped ${noReading} with no meter reading` : ""}`);
-  res.json({ success: true, period, created, skipped, noReading });
+  return { created, skipped, noReading };
+}
+
+router.post("/bills/generate", authMiddleware("admin", ["officer"]), (req, res) => {
+  const { period } = req.body || {};
+  if (!period || !dueDateForPeriod(period)) {
+    return res.status(400).json({ error: "A valid period (e.g. 'Jun 2026') is required." });
+  }
+  const result = generateBillsForPeriod(period, req);
+  res.json({ success: true, period, ...result });
 });
+
+// Closes the previous month automatically once it has ended, so bills are
+// generated even if no one presses Generate Bills. Runs every 10 minutes and
+// does nothing when the month's bills already exist.
+function runMonthlyClose() {
+  try {
+    const nowPh = new Date(Date.now() + PH_OFFSET_MS);
+    const prev = new Date(Date.UTC(nowPh.getUTCFullYear(), nowPh.getUTCMonth() - 1, 1));
+    const period = `${MONTH_SHORT_NAMES[prev.getUTCMonth()]} ${prev.getUTCFullYear()}`;
+    if (db.prepare("SELECT 1 FROM bills WHERE period = ? LIMIT 1").get(period)) return;
+    const result = generateBillsForPeriod(period, null);
+    console.log(`Monthly close: generated ${result.created} bill(s) for ${period}`);
+  } catch (err) {
+    console.error("monthly close failed:", err.message);
+  }
+}
+setInterval(runMonthlyClose, 10 * 60 * 1000).unref();
 
 // POST /api/bills/:id/correct-start  (officer/admin) — sets the starting meter
 // reading of a household's latest unpaid bill, for when the system began
