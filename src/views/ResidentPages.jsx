@@ -1055,7 +1055,7 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
 // ─────────────────────────────────────────────────────────────
 // MY BILLS  (matches the screenshot layout exactly)
 // ─────────────────────────────────────────────────────────────
-export function ResidentBills({ me, setPage, startGcashPayment, startCashPayment }) {
+export function ResidentBills({ me, setPage, startGcashPayment }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   // Build billing periods from history + unpaid balance data
@@ -1280,21 +1280,12 @@ export function ResidentBills({ me, setPage, startGcashPayment, startCashPayment
           {/* Pay by GCash QR for the current unpaid bill */}
           {selectedIdx === 0 && me.paymentStatus === "Unpaid" && (
             <div className="mt-3">
-              <div className="text-[12px] font-semibold text-slate-600 mb-2">Choose how to pay</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={() => startGcashPayment(me.id)}
-                  className="flex items-center justify-center gap-2 bg-[#0072CE] hover:bg-[#005ea3] text-white font-semibold text-sm py-2.5 rounded-lg transition"
-                >
-                  Pay with GCash
-                </button>
-                <button
-                  onClick={() => startCashPayment(me.id)}
-                  className="flex items-center justify-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm py-2.5 rounded-lg transition"
-                >
-                  Pay in cash at the barangay office
-                </button>
-              </div>
+              <button
+                onClick={() => startGcashPayment(me.id)}
+                className="w-full flex items-center justify-center gap-2 bg-[#0072CE] hover:bg-[#005ea3] text-white font-semibold text-sm py-2.5 rounded-lg transition"
+              >
+                Pay with GCash
+              </button>
             </div>
           )}
         </div>
@@ -1307,7 +1298,7 @@ export function ResidentBills({ me, setPage, startGcashPayment, startCashPayment
 // ─────────────────────────────────────────────────────────────
 // PAYMENT HISTORY  (was "Make Payment" — now shows history + pay option)
 // ─────────────────────────────────────────────────────────────
-export function ResidentPayments({ me, startGcashPayment, startCashPayment }) {
+export function ResidentPayments({ me, startGcashPayment }) {
   return (
     <>
       <div className="mb-4">
@@ -1398,7 +1389,7 @@ export function ResidentPayments({ me, startGcashPayment, startCashPayment }) {
 
       {/* GCash payment section */}
       <div className="max-w-xl mb-5">
-        <GcashBillingSection me={me} onPay={startGcashPayment} onCash={startCashPayment} />
+        <GcashBillingSection me={me} onPay={startGcashPayment} />
       </div>
 
       {/* Payment history table */}

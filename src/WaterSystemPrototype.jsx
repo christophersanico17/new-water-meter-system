@@ -9,7 +9,7 @@ import {
   getToken, adminLogin, adminLogout,
   fetchResidents, fetchBills, generateBills,
   fetchLatestReading,
-  submitGcashReference, initiateGcash, initiateCash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
+  submitGcashReference, initiateGcash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
   residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
   createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
@@ -863,20 +863,6 @@ export default function WaterSystemPrototype() {
     setPaymentStep("confirm");
   }
 
-  // Resident chooses cash at the barangay office. The bill becomes Cash Pending;
-  // only an admin marks it Paid after the cash is received.
-  async function startCashPayment(id) {
-    const household = households.find((h) => h.id === id);
-    if (!USE_API || !household?.bill_id) return;
-    try {
-      await initiateCash(household.bill_id);
-      await loadFromAPI(true);
-      showToast("Marked as a cash payment. Bring the amount to the barangay office.", "success");
-    } catch (err) {
-      showToast("Could not mark cash payment: " + err.message, "warn");
-    }
-  }
-
   async function confirmGcashPayment({ reference, receiptImage }) {
     setPaymentStep("processing");
     try {
@@ -1014,7 +1000,6 @@ export default function WaterSystemPrototype() {
           residentLoginHouseholdId={residentLoginHouseholdId}
           onResidentLoginHouseholdSelect={setResidentLoginHouseholdId}
           startGcashPayment={startGcashPayment}
-          startCashPayment={startCashPayment}
           syncPendingPayment={syncPendingPayment}
           onUpdateProfile={handleUpdateProfile}
           useApi={USE_API}
