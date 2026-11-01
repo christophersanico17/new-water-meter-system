@@ -9,7 +9,7 @@ import {
   getToken, adminLogin, adminLogout,
   fetchResidents, fetchBills, generateBills,
   fetchLatestReading,
-  submitGcashReference, initiateGcash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
+  submitGcashReference, initiateGcash, cancelGcash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
   residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
   createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
@@ -1011,9 +1011,19 @@ export default function WaterSystemPrototype() {
           household={households.find((h) => h.id === paymentModal)}
           step={paymentStep}
           onConfirm={confirmGcashPayment}
-          onClose={() => {
+          onClose={async () => {
+            const household = households.find((h) => h.id === paymentModal);
+            const unsubmitted = paymentStep === "confirm";
             setPaymentModal(null);
             setPaymentStep("confirm");
+            if (unsubmitted && USE_API && household?.bill_id) {
+              try {
+                await cancelGcash(household.bill_id);
+                await loadFromAPI(true);
+              } catch (err) {
+                console.error("Could not undo the GCash start:", err);
+              }
+            }
           }}
         />
       )}

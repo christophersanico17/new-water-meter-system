@@ -303,6 +303,13 @@ export async function initiateGcash(billId) {
   });
 }
 
+export async function cancelGcash(billId) {
+  return request(`/bills/${billId}/gcash/cancel`, {
+    method: "POST",
+    auth: "resident",
+  });
+}
+
 export async function submitGcashReference(billId, reference, receiptImage) {
   return request(`/bills/${billId}/gcash/reference`, {
     method: "POST",

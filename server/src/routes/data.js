@@ -531,6 +531,24 @@ router.post("/bills/:id/gcash/initiate", authMiddleware("resident"), (req, res) 
   res.json({ success: true, status: "GCash Pending" });
 });
 
+// POST /api/bills/:id/gcash/cancel (resident) — the resident closed the GCash
+// window without submitting proof. Only a started-but-unsubmitted payment is
+// undone: the bill returns to Unpaid and the GCash fee is removed.
+router.post("/bills/:id/gcash/cancel", authMiddleware("resident"), (req, res) => {
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
+  if (!bill) return res.status(404).json({ error: "Bill not found." });
+  if (bill.household_id !== req.user.householdId) {
+    return res.status(403).json({ error: "You can only change your own bill." });
+  }
+  if (bill.payment_status === "GCash Pending" && !bill.payment_ref && !bill.receipt_image) {
+    db.prepare(
+      `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, gcash_fee = 0,
+         total_due = ROUND(amount + prev_balance, 2) WHERE id = ?`
+    ).run(req.params.id);
+  }
+  res.json({ success: true });
+});
+
 // POST /api/bills/:id/gcash/reference — resident submits GCash payment proof
 // (reference, receipt image, or both). An admin verifies it.
 router.post("/bills/:id/gcash/reference", authMiddleware("resident"), (req, res) => {
