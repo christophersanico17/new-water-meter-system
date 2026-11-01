@@ -437,6 +437,50 @@ function runMonthlyClose() {
 }
 setInterval(runMonthlyClose, 10 * 60 * 1000).unref();
 
+// POST /api/bills/:id/recalculate  (officer/admin) — rebuilds an unpaid bill from
+// the reading at its period's cutoff. Body: { confirm: true } to save; without it,
+// only the before/after figures are returned so the admin can review them first.
+// Only the household's latest bill may change, so the bill chain stays intact.
+router.post("/bills/:id/recalculate", authMiddleware("admin", ["officer"]), (req, res) => {
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
+  if (!bill) return res.status(404).json({ error: "Bill not found." });
+  if (bill.payment_status === "Paid") {
+    return res.status(400).json({ error: "A paid bill cannot be recalculated." });
+  }
+  const latest = db.prepare("SELECT MAX(id) AS id FROM bills WHERE household_id = ?").get(bill.household_id);
+  if (latest.id !== bill.id) {
+    return res.status(400).json({ error: "Only the household's latest bill can be recalculated." });
+  }
+
+  const earlier = db
+    .prepare("SELECT * FROM bills WHERE household_id = ? AND id < ? ORDER BY id DESC LIMIT 1")
+    .get(bill.household_id, bill.id);
+  const prevCm3 = earlier ? earlier.curr_cm3 : 0;
+  const reading = db
+    .prepare("SELECT cm3 FROM readings WHERE household_id = ? AND recorded_at <= ? ORDER BY recorded_at DESC LIMIT 1")
+    .get(bill.household_id, periodCutoffUtc(bill.period));
+  if (!reading) {
+    return res.status(400).json({ error: "No meter reading exists up to the end of this period." });
+  }
+  const currCm3 = reading.cm3;
+  const consumption = Math.max(currCm3 - prevCm3, 0);
+  const amount = computeBillAmount(consumption);
+  const prevBalance = earlier && earlier.payment_status !== "Paid" ? earlier.total_due : 0;
+  const totalDue = +(amount + prevBalance + (bill.gcash_fee || 0)).toFixed(2);
+
+  const change = {
+    period: bill.period,
+    before: { prevCm3: bill.prev_cm3, currCm3: bill.curr_cm3, amount: bill.amount, totalDue: bill.total_due },
+    after: { prevCm3, currCm3, amount, totalDue },
+  };
+  if (req.body?.confirm !== true) return res.json({ preview: true, ...change });
+
+  db.prepare("UPDATE bills SET prev_cm3 = ?, curr_cm3 = ?, amount = ?, prev_balance = ?, total_due = ? WHERE id = ?")
+    .run(prevCm3, currCm3, amount, prevBalance, totalDue, bill.id);
+  recordAudit(req, "bill.recalculate", bill.household_id, `Recalculated ${bill.period} bill for ${bill.household_id}: ₱${bill.total_due} → ₱${totalDue}`);
+  res.json({ success: true, ...change });
+});
+
 // POST /api/bills/:id/correct-start  (officer/admin) — sets the starting meter
 // reading of a household's latest unpaid bill, for when the system began
 // counting after the meter already had a total. The bill's current reading is

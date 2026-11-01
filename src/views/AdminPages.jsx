@@ -24,6 +24,7 @@ import {
   recordManualReading,
   resetMeterReading,
   setHouseholdMeter,
+  recalculateBill,
   correctBillStartReading,
 } from "../api";
 
@@ -1718,6 +1719,43 @@ function ManualReadingForm({ household, onSaved, showToast }) {
   );
 }
 
+// Rebuilds the household's latest unpaid bill. Shows the before and after figures
+// first, and only saves when the admin confirms.
+function RecalculateBillForm({ household, onSaved, showToast }) {
+  const [saving, setSaving] = React.useState(false);
+
+  async function recalc() {
+    if (!household.bill_id) return;
+    setSaving(true);
+    try {
+      const preview = await recalculateBill(household.bill_id, false);
+      const msg =
+        `Recalculate the ${preview.period} bill for ${household.id}?\n\n` +
+        `Consumption: ${preview.before.currCm3 - preview.before.prevCm3} → ${preview.after.currCm3 - preview.after.prevCm3} m³\n` +
+        `Amount: ${peso(preview.before.amount)} → ${peso(preview.after.amount)}\n` +
+        `Total due: ${peso(preview.before.totalDue)} → ${peso(preview.after.totalDue)}`;
+      if (!window.confirm(msg)) return;
+      await recalculateBill(household.bill_id, true);
+      showToast?.(`${household.id} bill recalculated.`, "success");
+      onSaved?.();
+    } catch (err) {
+      showToast?.(err.message, "warn");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!household.bill_id) return null;
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <div className="text-xs font-semibold text-slate-500 mb-1.5">Recalculate bill</div>
+      <Btn variant="outline" onClick={recalc} disabled={saving}>
+        {saving ? "Working…" : "Recalculate latest unpaid bill"}
+      </Btn>
+    </div>
+  );
+}
+
 // Officer-only: changes a household's meter number. Residents cannot do this.
 function MeterNumberForm({ household, onSaved, showToast }) {
   const [value, setValue] = React.useState("");
@@ -2320,6 +2358,7 @@ export function HouseholdsPage({
                     <ManualReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <CorrectStartReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <ResetReadingForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
+                    <RecalculateBillForm household={h} onSaved={onHouseholdsChanged} showToast={showToast} />
                     <HouseholdEmailEditor household={h} onSave={onSetHouseholdEmail} />
                     {h.password && (
                       <div className="pt-1">
