@@ -409,10 +409,10 @@ export function ConsumptionPage({ households }) {
                   <tr key={h.id} className={i % 2 ? "bg-slate-50" : "bg-white"}>
                     <td className="px-3 py-2 font-medium text-slate-700">{h.id}</td>
                     <td className="px-3 py-2 text-slate-600">{h.name}</td>
-                    <td className="px-3 py-2 text-right text-slate-500">{h.rec.prev}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-slate-800">{h.rec.curr}</td>
-                    <td className="px-3 py-2 text-right text-slate-600">{consumption}</td>
-                    <td className="px-3 py-2 text-right text-slate-500">{h.isLatest && h.deviceProvisioned && h.deviceLastSeen ? h.lastFlow : "—"}</td>
+                    <td className="px-3 py-2 text-right text-slate-500">{fmtCm3(h.rec.prev)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-slate-800">{fmtCm3(h.rec.curr)}</td>
+                    <td className="px-3 py-2 text-right text-slate-600">{fmtCm3(consumption)}</td>
+                    <td className="px-3 py-2 text-right text-slate-500">{h.isLatest && h.deviceProvisioned && h.deviceLastSeen ? Number(h.lastFlow || 0).toFixed(1) : "—"}</td>
                     <td className="px-3 py-2 text-center">
                       {h.isLatest && h.deviceProvisioned && h.deviceLastSeen ? (
                         h.flowType === "High flow" ? <Badge tone="bad">High flow</Badge> : <Badge tone="good">Normal</Badge>
