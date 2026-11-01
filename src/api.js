@@ -186,6 +186,13 @@ export async function residentForgotPassword(householdId) {
 }
 
 // Officer sets a household's meter number.
+export async function deleteBill(billId) {
+  return request(`/bills/${billId}`, {
+    method: "DELETE",
+    auth: "admin",
+  });
+}
+
 export async function recalculateBill(billId, confirm) {
   return request(`/bills/${billId}/recalculate`, {
     method: "POST",
