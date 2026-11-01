@@ -233,6 +233,10 @@ function initSchema() {
   if (!billColumns.includes("gcash_fee")) {
     db.exec("ALTER TABLE bills ADD COLUMN gcash_fee REAL NOT NULL DEFAULT 0");
   }
+  // The GCash service fee was removed: take it back out of unpaid bills.
+  db.exec(
+    "UPDATE bills SET total_due = ROUND(amount + prev_balance, 2), gcash_fee = 0 WHERE gcash_fee > 0 AND payment_status <> 'Paid'"
+  );
 
   // One-time email codes for resident account setup / password reset
   // (see utils/verificationCodes.js).
