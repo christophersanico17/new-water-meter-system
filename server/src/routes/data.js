@@ -11,6 +11,7 @@ const { moveToTrash, restoreFromTrash, TRASH_DAYS } = require("../utils/trash");
 
 const router = express.Router();
 const QR_PAYMENT_REF_PREFIX = "QR:";
+const GCASH_FEE = 10;
 
 // ───────────────────────────────────────────────────────────
 // Residents / households
@@ -519,9 +520,12 @@ router.post("/bills/:id/gcash/initiate", authMiddleware("resident"), (req, res) 
     return res.status(400).json({ error: "This bill is already paid." });
   }
 
+  // GCash payments carry a flat ₱10 service fee, added to the amount due.
   db.prepare(
-    `UPDATE bills SET payment_status = 'GCash Pending', payment_method = 'GCash' WHERE id = ?`
-  ).run(req.params.id);
+    `UPDATE bills SET payment_status = 'GCash Pending', payment_method = 'GCash',
+       gcash_fee = ?, total_due = ROUND(amount + prev_balance + ?, 2)
+     WHERE id = ?`
+  ).run(GCASH_FEE, GCASH_FEE, req.params.id);
 
   recordAudit(req, "bill.gcash_initiate", bill.household_id, `Started GCash QR payment for ${bill.household_id} (${bill.period})`);
   res.json({ success: true, status: "GCash Pending" });
