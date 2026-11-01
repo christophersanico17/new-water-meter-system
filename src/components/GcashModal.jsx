@@ -88,6 +88,11 @@ export function GcashModal({ household, step, onConfirm, onClose }) {
             <form onSubmit={submitReference} className="flex flex-col items-center">
               <div className="text-xs text-slate-500">Barangay Kinamlutan Water System</div>
               <div className="text-lg font-bold text-slate-800 mt-1">{peso(household.totalDue)}</div>
+              {household.gcashFee > 0 && (
+                <div className="mt-1 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5 text-center">
+                  This amount includes a {peso(household.gcashFee)} GCash service fee.
+                </div>
+              )}
               <img
                 src={gcashQrImage}
                 alt="GCash payment QR code"
