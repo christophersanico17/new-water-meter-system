@@ -13,7 +13,6 @@ const adminAccountRoutes = require("./routes/adminAccounts");
 const dataRoutes = require("./routes/data");
 const announcementRoutes = require("./routes/announcements");
 const auditRoutes = require("./routes/audit");
-const webhookRoutes = require("./routes/webhooks");
 const deviceRoutes = require("./routes/devices");
 const eventRoutes = require("./routes/events");
 const settingsRoutes = require("./routes/settings");
@@ -45,11 +44,6 @@ app.use(
     credentials: true,
   })
 );
-
-// Webhook routes need the raw request body to verify signatures, so they're
-// mounted with express.raw() ahead of the global express.json() parser below
-// (which would otherwise consume and re-serialize the body first).
-app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoutes);
 
 // Raised from the 100kb default: GCash receipt photos arrive as base64 JSON
 // (the frontend shrinks them first, but a full-size photo is still ~1 MB).
