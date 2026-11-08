@@ -452,11 +452,6 @@ export async function fetchTariff() {
   return request("/tariff");
 }
 
-// Officer only. Applies to bills generated from now on.
-export async function updateTariffApi({ ratePerCm3, minBill }) {
-  return request("/settings/tariff", { method: "PUT", body: { ratePerCm3, minBill }, auth: "admin" });
-}
-
 export async function fetchAlertSettings() {
   return request("/settings/alerts", { auth: "admin" });
 }

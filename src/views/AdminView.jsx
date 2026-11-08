@@ -367,7 +367,7 @@ export function AdminView(props) {
           {activePage === "statements" && <BillStatementsPage households={households} />}
           {activePage === "announcements" && <AnnouncementsPage showToast={showToast} />}
           {activePage === "audit" && <AuditLogPage showToast={showToast} />}
-          {activePage === "settings" && <SettingsPage showToast={showToast} adminEmail={adminEmail} isOfficer={isOfficer} />}
+          {activePage === "settings" && <SettingsPage showToast={showToast} adminEmail={adminEmail} />}
         </div>
       </div>
 

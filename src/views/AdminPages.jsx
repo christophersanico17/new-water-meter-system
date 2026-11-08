@@ -7,7 +7,6 @@ import { deviceStatus, isDeviceOnline, DEVICE_STATUS_TICK_MS } from "../deviceSt
 import { useTariff } from "../useTariff";
 import { BILLING_PERIOD, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, fmtCm3, peso, isOverdue, daysOverdue } from "../data";
 import {
-  updateTariffApi,
   fetchAnnouncements,
   createAnnouncement,
   updateAnnouncement,
@@ -2764,45 +2763,8 @@ export function RecordsPage({ households, showToast }) {
   );
 }
 
-export function SettingsPage({ showToast, adminEmail, isOfficer = false }) {
-  const [editing, setEditing] = React.useState(false);
-  const { tariff, reload: reloadTariff } = useTariff();
-  const [rateDraft, setRateDraft] = React.useState("");
-  const [minDraft, setMinDraft] = React.useState("");
-  const [tariffError, setTariffError] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-
-  function startEditing() {
-    setRateDraft(tariff ? String(tariff.ratePerCm3) : "");
-    setMinDraft(tariff ? String(tariff.minBill) : "");
-    setTariffError("");
-    setEditing(true);
-  }
-
-  function cancelEditing() {
-    setTariffError("");
-    setEditing(false);
-  }
-
-  async function handleSave() {
-    setTariffError("");
-    if (isOfficer) {
-      setSaving(true);
-      try {
-        await updateTariffApi({ ratePerCm3: Number(rateDraft), minBill: Number(minDraft) });
-        await reloadTariff();
-      } catch (err) {
-        setTariffError(err.message);
-        setSaving(false);
-        return;
-      }
-      setSaving(false);
-      if (typeof showToast === "function") {
-        showToast("Billing rate saved. It applies to bills generated from now on.", "success");
-      }
-    }
-    setEditing(false);
-  }
+export function SettingsPage({ showToast, adminEmail }) {
+  const { tariff } = useTariff();
 
   return (
     <>
@@ -2811,46 +2773,16 @@ export function SettingsPage({ showToast, adminEmail, isOfficer = false }) {
         <div className="card-hover bg-white rounded-lg border border-slate-200 p-5 text-[12px] space-y-4">
           <div className="flex items-center justify-between pb-1">
             <span className="font-semibold text-slate-700 text-[13px]">Billing configuration</span>
-            {isOfficer && (
-              <button
-                onClick={() => (editing ? cancelEditing() : startEditing())}
-                className="text-[12px] text-sky-600 hover:text-sky-800 font-medium"
-              >
-                {editing ? "Cancel" : "Edit"}
-              </button>
-            )}
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Rate per m³</span>
-            {editing && isOfficer ? (
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={rateDraft}
-                onChange={(e) => setRateDraft(e.target.value)}
-                className="w-24 border border-slate-300 rounded-md px-2 py-1 text-right text-[12px] focus:outline-none focus:border-sky-400"
-              />
-            ) : (
-              <span className="font-medium">{tariff ? peso(tariff.ratePerCm3) : "—"}</span>
-            )}
+            <span className="font-medium">{tariff ? peso(tariff.ratePerCm3) : "—"}</span>
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Minimum billing</span>
-            {editing && isOfficer ? (
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={minDraft}
-                onChange={(e) => setMinDraft(e.target.value)}
-                className="w-24 border border-slate-300 rounded-md px-2 py-1 text-right text-[12px] focus:outline-none focus:border-sky-400"
-              />
-            ) : (
-              <span className="font-medium">{tariff ? peso(tariff.minBill) : "—"}</span>
-            )}
+            <span className="font-medium">{tariff ? peso(tariff.minBill) : "—"}</span>
           </div>
 
           <div className="flex justify-between items-center">
@@ -2858,12 +2790,6 @@ export function SettingsPage({ showToast, adminEmail, isOfficer = false }) {
             <span className="font-medium">{BILLING_PERIOD}</span>
           </div>
 
-          {editing ? (
-            <div className="pt-2 border-t border-slate-100 space-y-2">
-              {tariffError && <div className="text-[11px] text-rose-600">{tariffError}</div>}
-              <Btn variant="primary" onClick={handleSave}>{saving ? "Saving…" : "Save Changes"}</Btn>
-            </div>
-          ) : null}
         </div>
 
         <AlertDetectionSettingsCard showToast={showToast} />
