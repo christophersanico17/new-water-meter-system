@@ -71,7 +71,6 @@ export function ResidentView({
   startGcashPayment,
   syncPendingPayment,
   onUpdateProfile,
-  useApi,
 }) {
   const me = households.find((h) => h.id === activeId) || households[0];
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -238,7 +237,7 @@ export function ResidentView({
           {page === "profile"       && <ResidentProfile me={me} onUpdateProfile={onUpdateProfile} />}
           {page === "consumption"   && <ResidentConsumption me={me} />}
           {page === "announcements" && <ResidentAnnouncements />}
-          {page === "leak"          && <ResidentReportLeak me={me} useApi={useApi} />}
+          {page === "leak"          && <ResidentReportLeak me={me} />}
           {page === "help"          && <HelpPage />}
         </div>
       </div>

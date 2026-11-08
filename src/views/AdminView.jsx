@@ -367,7 +367,7 @@ export function AdminView(props) {
           {activePage === "statements" && <BillStatementsPage households={households} />}
           {activePage === "announcements" && <AnnouncementsPage showToast={showToast} />}
           {activePage === "audit" && <AuditLogPage showToast={showToast} />}
-          {activePage === "settings" && <SettingsPage showToast={showToast} adminEmail={adminEmail} />}
+          {activePage === "settings" && <SettingsPage showToast={showToast} adminEmail={adminEmail} isOfficer={isOfficer} />}
         </div>
       </div>
 
@@ -528,8 +528,7 @@ function MyAccountModal({ adminEmail, adminName, onUpdateAdminProfile, showToast
 // ─────────────────────────────────────────────────────────────
 // ADMIN LOGIN — matches handleAdminLogin({ email, password })
 //   -> returns/resolves { success, message? }
-// Valid demo creds: admin@barangay.local / wateroffice@barangay.local
-// with any password 8+ characters.
+// Signs in against the server's admin accounts.
 // ─────────────────────────────────────────────────────────────
 function AdminLoginScreen({ onAdminLogin }) {
   const [mode, setMode] = useState("login"); // 'login' | 'forgot'

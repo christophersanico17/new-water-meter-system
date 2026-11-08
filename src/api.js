@@ -159,10 +159,6 @@ export async function updateAdminProfile({ firstName, lastName, email, currentPa
 }
 
 // ── Resident auth ─────────────────────────────────────────────
-// These aren't in WaterSystemPrototype.jsx's import list yet, but are
-// needed to wire resident login through the API.
-// Exported here so the prototype file can import them once USE_API
-// resident-login support is added.
 
 // `code` is the emailed setup code — required when creating a password.
 export async function residentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code }) {
@@ -450,6 +446,16 @@ export async function fetchMyAlerts() {
 // ── Detection settings ───────────────────────────────────────
 // Real-time leak / abnormal-usage thresholds (routes/settings.js). Read on
 // the admin Settings page and by the detectors themselves server-side.
+
+// Water rate and minimum bill, from the server (the single source of truth).
+export async function fetchTariff() {
+  return request("/tariff");
+}
+
+// Officer only. Applies to bills generated from now on.
+export async function updateTariffApi({ ratePerCm3, minBill }) {
+  return request("/settings/tariff", { method: "PUT", body: { ratePerCm3, minBill }, auth: "admin" });
+}
 
 export async function fetchAlertSettings() {
   return request("/settings/alerts", { auth: "admin" });

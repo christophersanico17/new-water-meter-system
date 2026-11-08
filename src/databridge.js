@@ -1,19 +1,12 @@
 // Converts raw API response shapes (residents, bills, readings) into the
 // single "household" object shape that every resident/admin component in
 // this app already expects (prevCm3, currCm3, totalDue, history, etc.)
-// This keeps all existing UI components unchanged when USE_API is true.
+// This keeps all existing UI components unchanged.
 
 import { currentBillingPeriod, dueDateForPeriod, billingDateForPeriod } from "./data";
 
-const RATE_PER_CM3 = 20;
-const MIN_BILL = 200;
-
 function peso(n) {
   return "₱" + Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function computeBill(consumptionCm3) {
-  return +Math.max(consumptionCm3 * RATE_PER_CM3, MIN_BILL).toFixed(2);
 }
 
 /**
@@ -116,4 +109,4 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
   };
 }
 
-export { peso, computeBill };
+export { peso };

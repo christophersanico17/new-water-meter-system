@@ -26,7 +26,7 @@ const router = express.Router();
 // ───────────────────────────────────────────────────────────
 
 // Each household's own High Flow threshold, learned from its recent device
-// readings (see computeAdaptiveHighFlowLpm). Readings arrive every ~15s but
+// readings (see computeAdaptiveHighFlowLpm). Readings arrive every 5s but
 // the threshold only needs to follow usage over days, so it's cached per
 // household for a few minutes instead of re-scanning two weeks of readings
 // on every report. The cache key includes the learning settings, so an admin

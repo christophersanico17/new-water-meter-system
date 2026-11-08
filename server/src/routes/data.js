@@ -6,6 +6,7 @@ const { recordAudit } = require("../utils/audit");
 const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
+const { computeBillAmount } = require("../utils/tariff");
 const { settleCarriedBalances, unsettleCarriedBalances } = require("../utils/billing");
 const { moveToTrash, restoreFromTrash, TRASH_DAYS } = require("../utils/trash");
 
@@ -285,14 +286,7 @@ router.delete("/deleted-residents/:id", authMiddleware("admin", ["officer"]), (r
 // Bills
 // ───────────────────────────────────────────────────────────
 
-const RATE_PER_CM3 = 20;
-const MIN_BILL = 200;
 const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// Bills are whole pesos: the amount is rounded up to the next peso.
-function computeBillAmount(consumptionCm3) {
-  return Math.ceil(Math.max(consumptionCm3 * RATE_PER_CM3, MIN_BILL));
-}
 
 // Built as a plain "YYYY-MM-DD" string with no Date/toISOString round-trip —
 // that round-trip converts through UTC and can shift the day by one

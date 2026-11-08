@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { genReading, computeBill } from "./data";
 import { AdminView } from "./views/AdminView";
 import { ResidentView } from "./views/ResidentView";
 import { GcashModal } from "./components/GcashModal";
@@ -20,16 +19,10 @@ import {
 import { residentToHousehold } from "./databridge.js";
 import { jwtDecode } from "jwt-decode";
 
-// ── Mode flag ─────────────────────────────────────────────────
-// Set to true once you have the backend running and seeded.
-// When false, the app runs fully on mock data (original behaviour).
-const USE_API = true;
-
 // Restore a saved session on refresh: decode the stored JWT and, if it's still
 // valid (not expired), return its payload so the app can re-enter the portal
-// instead of bouncing back to the login screen. Only used when USE_API is true.
+// instead of bouncing back to the login screen.
 function readSession(role) {
-  if (!USE_API) return null;
   const token = getToken(role);
   if (!token) return null;
   try {
@@ -60,7 +53,7 @@ export default function WaterSystemPrototype() {
   const [adminName, setAdminName] = useState(adminSession?.name || "");
   const [residentLoginHouseholdId, setResidentLoginHouseholdId] = useState(null);
 
-  // shared state — populated either from API or from mock data
+  // shared state — populated from the backend API
   const [households, setHouseholds] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [leakReports, setLeakReports] = useState([]);
@@ -76,7 +69,7 @@ export default function WaterSystemPrototype() {
   // { id, action: "resolve" | "unresolve" } while a confirmation is pending.
   const [confirmAlert, setConfirmAlert] = useState(null);
   const [paymentStep, setPaymentStep] = useState("confirm");
-  const [loading, setLoading] = useState(USE_API);
+  const [loading, setLoading] = useState(true);
 
   const notificationTimers = useRef({});
 
@@ -112,7 +105,7 @@ export default function WaterSystemPrototype() {
       // picker, which only needs /residents' anonymous minimal-fields
       // response), so those two are expected to 401/403 at that point —
       // that's correct, not a failure to recover from, hence the fallback
-      // to [] below rather than bailing out to mock data.
+      // to [] below rather than failing the whole load.
       const [residentsResult, billsResult, alertsResult] = await Promise.allSettled([
         fetchResidents(),
         fetchBills(),
@@ -175,37 +168,19 @@ export default function WaterSystemPrototype() {
       }
     } catch (err) {
       showToast("Could not connect to backend: " + err.message, "warn");
-      // Fall back to mock data
-      loadMockData();
     } finally {
       if (!silent) setLoading(false);
     }
   }, []); // eslint-disable-line
 
-  function loadMockData() {
-    // Original mock bootstrap (imported lazily to keep bundle clean)
-    import("./data.js").then(({ buildInitialHouseholds, buildInitialAlerts }) => {
-      const h = buildInitialHouseholds();
-      setHouseholds(h);
-      setAlerts(buildInitialAlerts(h));
-      setActiveResidentId((prev) => prev || h[0].id);
-      setResidentLoginHouseholdId((prev) => prev || h[0].id);
-    });
-  }
-
   useEffect(() => {
-    if (USE_API) {
-      loadFromAPI();
-    } else {
-      loadMockData();
-    }
+    loadFromAPI();
   }, []); // eslint-disable-line
 
   // Leak reports are admin-only server-side, so they can't ride along in
   // loadFromAPI's Promise.all (that runs before any login and would 401).
   // Fetch them once an admin session exists instead.
   const loadLeakReports = useCallback(async () => {
-    if (!USE_API) return;
     try {
       const rows = await fetchLeakReports();
       setLeakReports(
@@ -242,94 +217,30 @@ export default function WaterSystemPrototype() {
     }
   }, [view]);
 
-  // ── IoT simulation (mock mode only) ─────────────────────────
-  useEffect(() => {
-    if (USE_API) return; // backend pushes real data; no simulation needed
-    if (households.length === 0) return;
-
-    const interval = setInterval(() => {
-      setHouseholds((prev) => {
-        const idx = Math.floor(Math.random() * prev.length);
-        const target = prev[idx];
-        const { current, isAnomaly } = genReading(target.currCm3, 0.1);
-        const consumption = current - target.prevCm3;
-        const amount = computeBill(consumption);
-
-        if (isAnomaly) {
-          const newAlert = {
-            id: `ALT-${Math.floor(Math.random() * 900 + 100)}`,
-            householdId: target.id,
-            name: target.name,
-            standpost: target.standpost,
-            type: Math.random() > 0.5 ? "Leak Detected" : "High Flow",
-            flowRate: `${(60 + Math.random() * 40).toFixed(0)} L/m`,
-            threshold: "50 L/m",
-            time: "Just now",
-            status: "Unresolved",
-          };
-          setAlerts((a) => [newAlert, ...a].slice(0, 10));
-          showToast(`Abnormal usage detected — ${target.id} (${target.name})`, "warn");
-        }
-
-        const updated = [...prev];
-        updated[idx] = {
-          ...target,
-          currCm3: current,
-          consumption,
-          amount,
-          totalDue: +(amount + target.prevBalance).toFixed(2),
-          lastFlow: isAnomaly ? 15 + Math.floor(Math.random() * 10) : 2 + Math.floor(Math.random() * 5),
-          flowType: isAnomaly ? "High flow" : "Normal",
-        };
-        return updated;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [households.length]);
-
   // ── Admin login ─────────────────────────────────────
   async function handleAdminLogin({ email, password, firstName, lastName }) {
     if (!email || !password || !firstName || !lastName) {
       return { success: false, message: "First name, last name, email, and password are all required." };
     }
 
-    if (USE_API) {
-      try {
-        const user = await adminLogin(email, password, firstName, lastName);
-        setAdminEmail(user.email || email);
-        setAdminRole(user.role || "officer");
-        setAdminName(user.name || "");
-        setAdminAuthenticated(true);
-        setAdminPage("dashboard");
-        // The initial load ran signed out, when bills/alerts/readings are
-        // refused — reload now that the admin token can fetch them.
-        await loadFromAPI(true);
-        return { success: true };
-      } catch (err) {
-        return { success: false, message: err.message };
-      }
+    try {
+      const user = await adminLogin(email, password, firstName, lastName);
+      setAdminEmail(user.email || email);
+      setAdminRole(user.role || "officer");
+      setAdminName(user.name || "");
+      setAdminAuthenticated(true);
+      setAdminPage("dashboard");
+      // The initial load ran signed out, when bills/alerts/readings are
+      // refused — reload now that the admin token can fetch them.
+      await loadFromAPI(true);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message };
     }
-
-    if (email.toLowerCase() !== "admin@barangay.local" && email.toLowerCase() !== "wateroffice@barangay.local") {
-      return { success: false, message: "Use an admin email such as admin@barangay.local." };
-    }
-    if (password.length < 8) {
-      return { success: false, message: "Password must be at least 8 characters." };
-    }
-
-    setAdminEmail(email);
-    setAdminName(`${firstName} ${lastName}`.trim());
-    setAdminAuthenticated(true);
-    setAdminPage("dashboard");
-    return { success: true };
   }
 
   // Self-service profile edit (any signed-in admin, own account only).
   async function handleUpdateAdminProfile(updates) {
-    if (!USE_API) {
-      return { success: false, message: "Profile editing isn't available in demo mode." };
-    }
     try {
       const result = await updateAdminProfile(updates);
       setAdminEmail(result.email || adminEmail);
@@ -341,7 +252,7 @@ export default function WaterSystemPrototype() {
   }
 
   function handleAdminLogout() {
-    if (USE_API) adminLogout();
+    adminLogout();
     setAdminEmail("");
     setAdminName("");
     setAdminAuthenticated(false);
@@ -354,52 +265,22 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleResidentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code }) {
-    if (USE_API) {
-      try {
-        const result = await residentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code });
-        if (result.success) {
-          setActiveResidentId(householdId);
-          setResidentAuthenticated(true);
-          setResidentPage("dashboard");
-          await loadFromAPI(true); // refresh so the newly-set password flag etc. show up
-        }
-        return result;
-      } catch (err) {
-        return { success: false, message: err.message };
+    try {
+      const result = await residentLogin({ householdId, password, confirmPassword, email, firstName, lastName, code });
+      if (result.success) {
+        setActiveResidentId(householdId);
+        setResidentAuthenticated(true);
+        setResidentPage("dashboard");
+        await loadFromAPI(true); // refresh so the newly-set password flag etc. show up
       }
+      return result;
+    } catch (err) {
+      return { success: false, message: err.message };
     }
-
-    const household = households.find((h) => h.id === householdId);
-    if (!household) {
-      return { success: false, message: "Select your standpost before logging in." };
-    }
-
-    const isNewPassword = !household.password;
-    if (isNewPassword) {
-      if (!isStrongPassword(password)) {
-        return {
-          success: false,
-          message: "Password must be at least 8 characters.",
-        };
-      }
-      if (password !== confirmPassword) {
-        return { success: false, message: "Passwords do not match." };
-      }
-      setHouseholds((prev) => prev.map((h) => (h.id === householdId ? { ...h, password } : h)));
-    }
-
-    if (!isNewPassword && household.password !== password) {
-      return { success: false, message: "Invalid password for this standpost." };
-    }
-
-    setActiveResidentId(householdId);
-    setResidentAuthenticated(true);
-    setResidentPage("dashboard");
-    return { success: true };
   }
 
   function handleResidentLogout() {
-    if (USE_API) residentLogout();
+    residentLogout();
     setResidentAuthenticated(false);
     setResidentPage("login");
   }
@@ -409,12 +290,10 @@ export default function WaterSystemPrototype() {
     // Password fields are write-only — send them to the API but never let
     // them land in app state (React devtools, re-renders, etc).
     const { currentPassword, newPassword, ...displayUpdates } = updates;
-    if (USE_API) {
-      try {
-        await updateResidentProfile(householdId, updates);
-      } catch (err) {
-        return { success: false, message: err.message };
-      }
+    try {
+      await updateResidentProfile(householdId, updates);
+    } catch (err) {
+      return { success: false, message: err.message };
     }
     setHouseholds((prev) =>
       prev.map((h) => (h.id === householdId ? { ...h, ...displayUpdates } : h))
@@ -423,30 +302,18 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleResetResidentPassword(householdId) {
-    if (USE_API) {
-      try {
-        await resetResidentPassword(householdId);
-        await loadFromAPI(true);
-        showToast(`${householdId} password reset — resident must set a new one on next login.`, "info");
-      } catch (err) {
-        showToast("Could not reset password: " + err.message, "warn");
-      }
-      return;
+    try {
+      await resetResidentPassword(householdId);
+      await loadFromAPI(true);
+      showToast(`${householdId} password reset — resident must set a new one on next login.`, "info");
+    } catch (err) {
+      showToast("Could not reset password: " + err.message, "warn");
     }
-    setHouseholds((prev) => prev.map((h) => (h.id === householdId ? { ...h, password: null } : h)));
-    showToast(`${householdId} password reset — resident must set a new one on next login.`, "info");
   }
 
   // Admin types the resident's new password directly and confirms it —
   // resolves any pending "forgot password" request without a code.
   async function handleConfirmPasswordReset(householdId, newPassword) {
-    if (!USE_API) {
-      setHouseholds((prev) =>
-        prev.map((h) => (h.id === householdId ? { ...h, password: newPassword, passwordResetRequested: false } : h))
-      );
-      showToast(`${householdId} password set and confirmed.`, "success");
-      return { success: true };
-    }
     try {
       await confirmResidentPasswordReset(householdId, newPassword);
       await loadFromAPI(true);
@@ -459,9 +326,6 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleSetHouseholdEmail(householdId, email) {
-    if (!USE_API) {
-      return { success: false, message: "Editing emails requires the backend to be running." };
-    }
     try {
       await setHouseholdEmail(householdId, email);
       await loadFromAPI(true);
@@ -473,9 +337,6 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleAddHousehold(payload) {
-    if (!USE_API) {
-      return { success: false, message: "Adding households requires the backend to be running." };
-    }
     try {
       const result = await createHousehold(payload);
       await loadFromAPI(true);
@@ -491,10 +352,6 @@ export default function WaterSystemPrototype() {
   // the device itself via POST /api/devices/readings, picked up in near
   // real time by the SSE subscription below rather than through these.
   async function handleProvisionDevice(householdId) {
-    if (!USE_API) {
-      showToast("Device provisioning requires the backend to be running.", "warn");
-      return null;
-    }
     try {
       const result = await provisionDevice(householdId);
       await loadFromAPI(true);
@@ -507,7 +364,6 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleRevokeDevice(householdId) {
-    if (!USE_API) return;
     try {
       await revokeDevice(householdId);
       await loadFromAPI(true);
@@ -518,7 +374,6 @@ export default function WaterSystemPrototype() {
   }
 
   async function handleSetDeviceCalibration(householdId, pulsesPerLiter) {
-    if (!USE_API) return;
     try {
       await setDeviceCalibration(householdId, pulsesPerLiter);
       await loadFromAPI(true);
@@ -534,7 +389,7 @@ export default function WaterSystemPrototype() {
   // they're reported — no polling, no manual refresh. Falls back to nothing
   // special if it disconnects; the browser's EventSource retries on its own.
   useEffect(() => {
-    if (!USE_API || !adminAuthenticated) return;
+    if (!adminAuthenticated) return;
     const url = liveEventsUrl();
     if (!url) return;
 
@@ -617,7 +472,7 @@ export default function WaterSystemPrototype() {
   // they see a live device-detected issue instead of only the per-cycle
   // "High usage" banner (which only updates once a bill is generated).
   useEffect(() => {
-    if (!USE_API || !residentAuthenticated) {
+    if (!residentAuthenticated) {
       setMyAlerts([]);
       return;
     }
@@ -645,10 +500,6 @@ export default function WaterSystemPrototype() {
   }, [residentAuthenticated]); // eslint-disable-line
 
   async function handleGenerateBills(period) {
-    if (!USE_API) {
-      showToast("Bill generation requires the backend to be running.", "warn");
-      return;
-    }
     try {
       const result = await generateBills(period);
       await loadFromAPI(true);
@@ -666,129 +517,68 @@ export default function WaterSystemPrototype() {
   // paymentMethod is whichever the admin picked in the confirm modal —
   // "Offline" (cash, received in person) or "GCash" (QR code confirmed by admin).
   async function markPaid(id, paymentMethod = "Offline", paymentStamp, paymentReference) {
-    if (USE_API) {
-      try {
-        const household = households.find((h) => h.id === id);
-        if (!household?.bill_id) throw new Error("No bill found for this household.");
-        await recordCash(household.bill_id, household.totalDue, paymentMethod, paymentReference);
-        await loadFromAPI(true); // refresh from backend
-        return true;
-      } catch (err) {
-        showToast("Payment error: " + err.message, "warn");
-        return false;
-      }
-    }
-
-    if (paymentMethod === "GCash" && !/^[0-9]{1,80}$/.test(String(paymentReference || ""))) {
-      showToast("Enter a numeric GCash reference before recording payment.", "warn");
+    try {
+      const household = households.find((h) => h.id === id);
+      if (!household?.bill_id) throw new Error("No bill found for this household.");
+      await recordCash(household.bill_id, household.totalDue, paymentMethod, paymentReference);
+      await loadFromAPI(true); // refresh from backend
+      return true;
+    } catch (err) {
+      showToast("Payment error: " + err.message, "warn");
       return false;
     }
-
-    // Mock path
-    setHouseholds((prev) =>
-      prev.map((h) =>
-        h.id === id
-          ? { ...h, paymentStatus: "Paid", paymentMethod, paymentReference: paymentReference || h.paymentReference, paymentStamp: paymentStamp || h.paymentStamp }
-          : h
-      )
-    );
-    return true;
   }
 
   // Undo an accidental payment — reverts a Paid bill back to Unpaid.
   async function markUnpaid(id) {
-    if (USE_API) {
-      try {
-        const household = households.find((h) => h.id === id);
-        if (!household?.bill_id) throw new Error("No bill found for this household.");
-        await recordUnpaid(household.bill_id);
-        await loadFromAPI(true); // refresh from backend
-        showToast("Payment reverted — bill marked unpaid.", "success");
-      } catch (err) {
-        showToast("Could not revert payment: " + err.message, "warn");
-      }
-      return;
+    try {
+      const household = households.find((h) => h.id === id);
+      if (!household?.bill_id) throw new Error("No bill found for this household.");
+      await recordUnpaid(household.bill_id);
+      await loadFromAPI(true); // refresh from backend
+      showToast("Payment reverted — bill marked unpaid.", "success");
+    } catch (err) {
+      showToast("Could not revert payment: " + err.message, "warn");
     }
-
-    // Mock path
-    setHouseholds((prev) =>
-      prev.map((h) =>
-        h.id === id ? { ...h, paymentStatus: "Unpaid", paymentMethod: null } : h
-      )
-    );
   }
 
   async function receiveGcashPayment(id, reference) {
-    if (USE_API) {
-      try {
-        const household = households.find((h) => h.id === id);
-        if (!household?.bill_id) throw new Error("No bill found for this household.");
-        await confirmGcash(household.bill_id, reference);
-        await loadFromAPI(true); // refresh from backend
-        showToast(`${id} GCash payment received and confirmed`, "success");
-        return true;
-      } catch (err) {
-        showToast("GCash confirmation error: " + err.message, "warn");
-        return false;
-      }
-    }
-
-    const household = households.find((h) => h.id === id);
-    if (household?.paymentReference && reference?.trim().toUpperCase() !== household.paymentReference.trim().toUpperCase()) {
-      showToast("GCash confirmation error: the reference does not match the resident's submission.", "warn");
+    try {
+      const household = households.find((h) => h.id === id);
+      if (!household?.bill_id) throw new Error("No bill found for this household.");
+      await confirmGcash(household.bill_id, reference);
+      await loadFromAPI(true); // refresh from backend
+      showToast(`${id} GCash payment received and confirmed`, "success");
+      return true;
+    } catch (err) {
+      showToast("GCash confirmation error: " + err.message, "warn");
       return false;
     }
-    // Mock path
-    setHouseholds((prev) =>
-      prev.map((h) =>
-        h.id === id && h.paymentStatus === "GCash Pending"
-          ? { ...h, paymentStatus: "Paid" }
-          : h
-      )
-    );
-    showToast(`${id} GCash payment received and confirmed`, "success");
-    return true;
   }
 
   async function handleRejectGcashPayment(billId, reason) {
-    if (USE_API) {
-      try {
-        await rejectGcash(billId, reason);
-        await loadFromAPI(true);
-        return true;
-      } catch (err) {
-        showToast("Error rejecting payment: " + err.message, "warn");
-        return false;
-      }
+    try {
+      await rejectGcash(billId, reason);
+      await loadFromAPI(true);
+      return true;
+    } catch (err) {
+      showToast("Error rejecting payment: " + err.message, "warn");
+      return false;
     }
-    return true;
   }
 
   // Admin confirms cash they've physically received for a resident's
   // "Cash Pending" bill — the only way a cash payment ever becomes Paid.
   async function receiveCashPayment(id) {
-    if (USE_API) {
-      try {
-        const household = households.find((h) => h.id === id);
-        if (!household?.bill_id) throw new Error("No bill found for this household.");
-        await confirmCash(household.bill_id);
-        await loadFromAPI(true); // refresh from backend
-        showToast(`${id} cash payment received and confirmed`, "success");
-      } catch (err) {
-        showToast("Cash confirmation error: " + err.message, "warn");
-      }
-      return;
+    try {
+      const household = households.find((h) => h.id === id);
+      if (!household?.bill_id) throw new Error("No bill found for this household.");
+      await confirmCash(household.bill_id);
+      await loadFromAPI(true); // refresh from backend
+      showToast(`${id} cash payment received and confirmed`, "success");
+    } catch (err) {
+      showToast("Cash confirmation error: " + err.message, "warn");
     }
-
-    // Mock path
-    setHouseholds((prev) =>
-      prev.map((h) =>
-        h.id === id && h.paymentStatus === "Cash Pending"
-          ? { ...h, paymentStatus: "Paid" }
-          : h
-      )
-    );
-    showToast(`${id} cash payment received and confirmed`, "success");
   }
 
   // Opening the confirmation modal — both the table row and the detail panel
@@ -806,13 +596,11 @@ export default function WaterSystemPrototype() {
     setConfirmAlert(null);
     const resolving = action === "resolve";
     const nextStatus = resolving ? "Resolved" : "Unresolved";
-    if (USE_API) {
-      try {
-        await (resolving ? resolveAlertApi(id) : unresolveAlertApi(id));
-      } catch (err) {
-        showToast(`Could not ${action} alert: ` + err.message, "warn");
-        return;
-      }
+    try {
+      await (resolving ? resolveAlertApi(id) : unresolveAlertApi(id));
+    } catch (err) {
+      showToast(`Could not ${action} alert: ` + err.message, "warn");
+      return;
     }
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: nextStatus, statusChangedAt: new Date() } : a)));
     showToast(`Alert marked as ${nextStatus.toLowerCase()}`, "success");
@@ -821,13 +609,11 @@ export default function WaterSystemPrototype() {
   // ── Leak reports ─────────────────────────────────────────────
   async function resolveLeakReport(id) {
     const nextStatus = "Resolved";
-    if (USE_API) {
-      try {
-        await resolveLeakReportApi(id);
-      } catch (err) {
-        showToast("Could not resolve report: " + err.message, "warn");
-        return;
-      }
+    try {
+      await resolveLeakReportApi(id);
+    } catch (err) {
+      showToast("Could not resolve report: " + err.message, "warn");
+      return;
     }
     setLeakReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: nextStatus } : r)));
     showToast("Leak report marked as resolved", "success");
@@ -835,13 +621,11 @@ export default function WaterSystemPrototype() {
 
   async function reopenLeakReport(id) {
     const nextStatus = "Open";
-    if (USE_API) {
-      try {
-        await unresolveLeakReportApi(id);
-      } catch (err) {
-        showToast("Could not reopen report: " + err.message, "warn");
-        return;
-      }
+    try {
+      await unresolveLeakReportApi(id);
+    } catch (err) {
+      showToast("Could not reopen report: " + err.message, "warn");
+      return;
     }
     setLeakReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: nextStatus } : r)));
     showToast("Leak report reopened", "success");
@@ -851,7 +635,7 @@ export default function WaterSystemPrototype() {
   async function startGcashPayment(id) {
     // Mark the bill as GCash Pending on the server, then reload it.
     const household = households.find((h) => h.id === id);
-    if (USE_API && household?.bill_id) {
+    if (household?.bill_id) {
       try {
         await initiateGcash(household.bill_id);
         await loadFromAPI(true);
@@ -867,20 +651,9 @@ export default function WaterSystemPrototype() {
     setPaymentStep("processing");
     try {
       const household = households.find((h) => h.id === paymentModal);
-      if (USE_API && !household?.bill_id) throw new Error("No bill found.");
-      if (USE_API) {
-        await submitGcashReference(household.bill_id, reference, receiptImage);
-        await loadFromAPI(true);
-      } else {
-        const paymentReference = reference.trim();
-        setHouseholds((prev) =>
-          prev.map((h) =>
-            h.id === paymentModal
-              ? { ...h, paymentStatus: "GCash Pending", paymentMethod: "GCash", paymentReference }
-              : h
-          )
-        );
-      }
+      if (!household?.bill_id) throw new Error("No bill found.");
+      await submitGcashReference(household.bill_id, reference, receiptImage);
+      await loadFromAPI(true);
       setPaymentStep("gcash-pending");
       showToast("GCash payment proof submitted for admin verification.", "info");
     } catch (err) {
@@ -892,7 +665,7 @@ export default function WaterSystemPrototype() {
   // Resolves the current bill's payment status by household id server-side.
   // Works even before bill data is loaded.
   async function syncPendingPayment(householdId, { silent = false } = {}) {
-    if (!USE_API || !householdId) return;
+    if (!householdId) return;
     try {
       const result = await syncGcashByHousehold(householdId, "resident");
       if (result.paid) {
@@ -909,7 +682,7 @@ export default function WaterSystemPrototype() {
 
   // Check for payment status after leaving the payment page.
   useEffect(() => {
-    if (!USE_API || !residentAuthenticated) return;
+    if (!residentAuthenticated) return;
     const params = new URLSearchParams(window.location.search);
     const paidHousehold = params.get("paidHousehold");
     const cancelledHousehold = params.get("cancelledHousehold");
@@ -1002,7 +775,6 @@ export default function WaterSystemPrototype() {
           startGcashPayment={startGcashPayment}
           syncPendingPayment={syncPendingPayment}
           onUpdateProfile={handleUpdateProfile}
-          useApi={USE_API}
         />
       )}
 
@@ -1016,7 +788,7 @@ export default function WaterSystemPrototype() {
             const unsubmitted = paymentStep === "confirm";
             setPaymentModal(null);
             setPaymentStep("confirm");
-            if (unsubmitted && USE_API && household?.bill_id) {
+            if (unsubmitted && household?.bill_id) {
               try {
                 await cancelGcash(household.bill_id);
                 await loadFromAPI(true);

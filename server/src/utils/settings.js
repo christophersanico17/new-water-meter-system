@@ -11,7 +11,7 @@ const ALERT_SETTINGS_DEFAULTS = {
   highFlowLpm: 15, // a single reading at/above this = a wide-open tap or burst
   highFlowLearnDays: 14, // learn from this many days of the household's readings
   highFlowLearnMultiplier: 1.5, // threshold = household's typical peak flow × this
-  highFlowMinSamples: 20, // flowing readings needed before learning kicks in (~5 min of use at 15s reports)
+  highFlowMinSamples: 20, // flowing readings needed before learning kicks in (~100 s of use at 5 s reports)
   highFlowMaxLpm: 30, // learning never raises the threshold above this (the flow sensor's rated maximum; see the datasheet)
   // Anything faster than this is above the flow sensor's rated maximum (30 L/min),
   // so it can't be real water through a household sensor — it's electrical noise,
@@ -23,8 +23,8 @@ const ALERT_SETTINGS_DEFAULTS = {
   highUsageRatio: 1.6, // a billing cycle at/above this × the household's average -> High Flow
   leakUsageRatio: 2.2, // ...at/above this × average -> Leak Detected instead
   // No readings for this long from a provisioned device -> No Sensor Data.
-  // The reference firmware (firmware/esp_water_meter) reports every ~15s by
-  // default, so 5 minutes is ~20 missed reports before flagging it —
+  // The reference firmware (firmware/esp_water_meter) reports every 5s by
+  // default, so 5 minutes is ~60 missed reports before flagging it —
   // enough to shrug off a brief WiFi blip while still catching a dead device
   // promptly instead of leaving it dark for the better part of an hour.
   deviceSilenceMinutes: 5,

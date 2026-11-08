@@ -1,16 +1,3 @@
-export const seedHouseholds = [
-  { id: "HH-001", name: "Juan dela Cruz", email: "juan.delacruz@gmail.com", standpost: 25, meter: "158-SH-00013" },
-  { id: "HH-002", name: "Maria Santos", email: "maria.santos@gmail.com", standpost: 12, meter: "158-SH-00024" },
-  { id: "HH-003", name: "Pedro Reyes", email: "pedro.reyes@gmail.com", standpost: 7, meter: "158-SH-00031" },
-  { id: "HH-004", name: "Luz Garcia", email: "luz.garcia@gmail.com", standpost: 18, meter: "158-SH-00008" },
-  { id: "HH-005", name: "Jose Cruz", email: "jose.cruz@gmail.com", standpost: 33, meter: "158-SH-00019" },
-  { id: "HH-006", name: "Ana Reyes", email: "ana.reyes@gmail.com", standpost: 4, meter: "158-SH-00042" },
-  { id: "HH-007", name: "Carlos Bautista", email: "carlos.bautista@gmail.com", standpost: 29, meter: "158-SH-00053" },
-  { id: "HH-008", name: "Nena Flores", email: "nena.flores@gmail.com", standpost: 11, meter: "158-SH-00063" },
-];
-
-export const RATE_PER_CM3 = 20;
-export const MIN_BILL = 200;
 export const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function currentBillingPeriod(date = new Date()) {
@@ -18,13 +5,6 @@ export function currentBillingPeriod(date = new Date()) {
 }
 
 export const BILLING_PERIOD = `Month of ${currentBillingPeriod()}`;
-
-function previousBillingPeriods(count, date = new Date()) {
-  return Array.from({ length: count }, (_, index) => {
-    const previousDate = new Date(date.getFullYear(), date.getMonth() - count + index, 1);
-    return currentBillingPeriod(previousDate);
-  });
-}
 
 // Dates are handled as plain "YYYY-MM-DD" strings throughout (no time/zone
 // component). Parsing "YYYY-MM-DD" via `new Date(str)` treats it as UTC
@@ -96,10 +76,6 @@ export function usedCm3(rec) {
   return Math.round((rec.curr - rec.prev) * 10000) / 10000;
 }
 
-export function computeBill(consumptionCm3) {
-  return +Math.max(consumptionCm3 * RATE_PER_CM3, MIN_BILL).toFixed(2);
-}
-
 export function getConsumptionStatus(me) {
   const pastUsages = me.history.slice(0, -1).map((r) => r.curr - r.prev);
   if (pastUsages.length === 0) {
@@ -137,82 +113,6 @@ export function getConsumptionStatus(me) {
     message: `Your usage this cycle (${me.consumption} m³) is within your normal range (avg. ${avg.toFixed(0)} m³).`,
     tone: "good",
   };
-}
-
-export function genReading(prevCm3, anomalyChance = 0.12) {
-  const isAnomaly = Math.random() < anomalyChance;
-  const normalDelta = 8 + Math.floor(Math.random() * 22);
-  const anomalyDelta = 55 + Math.floor(Math.random() * 40);
-  const delta = isAnomaly ? anomalyDelta : normalDelta;
-  return { current: prevCm3 + delta, isAnomaly, delta };
-}
-
-export function dateStamp() {
-  return new Date().toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-}
-
-export function buildInitialHouseholds() {
-  return seedHouseholds.map((h, i) => {
-    const prev = 10 + i * 4 + Math.floor(Math.random() * 6);
-    const current = prev + 8 + Math.floor(Math.random() * 22);
-    const consumption = current - prev;
-    const amount = computeBill(consumption);
-    const prevBalance = MIN_BILL;
-
-    const paymentStatus = Math.random() > 0.5 ? "Paid" : "Unpaid";
-    const paymentMethod = paymentStatus === "Paid" ? (Math.random() > 0.5 ? "GCash" : "Offline") : undefined;
-    const paymentStamp = paymentMethod === "GCash" ? {
-      ref: `GC${Math.floor(10000000 + Math.random() * 90000000)}`,
-      date: dateStamp(),
-      method: "GCash",
-    } : undefined;
-
-    const period = currentBillingPeriod();
-    const historyPeriods = previousBillingPeriods(4);
-    const dueDate = dueDateForPeriod(period);
-    const billingDate = billingDateForPeriod(period);
-    return {
-      ...h,
-      period,
-      dateConnected: "2024-12-10",
-      prevCm3: prev,
-      currCm3: current,
-      totalConsumed: prev + current,
-      consumption,
-      amount,
-      prevBalance,
-      totalDue: +(amount + prevBalance).toFixed(2),
-      dueDate,
-      billingDate,
-      paymentStatus,
-      paymentMethod,
-      paymentStamp,
-      lastFlow: 2 + Math.floor(Math.random() * 5),
-      flowType: "Normal",
-      history: [
-        { period: historyPeriods[0], prev: 20, curr: 28, amt: 200, paid: true },
-        { period: historyPeriods[1], prev: 28, curr: 44, amt: 320, paid: true },
-        { period: historyPeriods[2], prev: 44, curr: 50, amt: 200, paid: true },
-        { period: historyPeriods[3], prev: 50, curr: 53, amt: 200, paid: true },
-        { period, prev, curr: current, amt: amount, paid: paymentStatus === "Paid" },
-      ],
-    };
-  });
-}
-
-export function buildInitialAlerts(households) {
-  const types = ["Leak Detected", "High Flow", "No Sensor Data"];
-  return households.slice(0, 5).map((h, i) => ({
-    id: `ALT-${940 + i}`,
-    householdId: h.id,
-    name: h.name,
-    standpost: h.standpost,
-    type: types[i % types.length],
-    flowRate: types[i % types.length] === "No Sensor Data" ? "—" : `${(40 + Math.random() * 50).toFixed(0)} L/m`,
-    threshold: "50 L/m",
-    time: i === 0 ? "Just now" : `${dateStamp()}`,
-    status: i < 2 ? "Unresolved" : "Resolved",
-  }));
 }
 
 // Display only: readings are stored to 4 decimals, shown to 2.

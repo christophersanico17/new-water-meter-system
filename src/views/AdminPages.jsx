@@ -4,8 +4,10 @@ import { SectionHeader } from "../components/SectionHeader";
 import { askConfirm } from "../components/confirmBus";
 import { BillReplica } from "../components/BillReplica";
 import { deviceStatus, isDeviceOnline, DEVICE_STATUS_TICK_MS } from "../deviceStatus";
-import { BILLING_PERIOD, RATE_PER_CM3, MIN_BILL, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, fmtCm3, peso, isOverdue, daysOverdue } from "../data";
+import { useTariff } from "../useTariff";
+import { BILLING_PERIOD, MONTH_SHORT_NAMES, formatPaymentDate, usedCm3, fmtCm3, peso, isOverdue, daysOverdue } from "../data";
 import {
+  updateTariffApi,
   fetchAnnouncements,
   createAnnouncement,
   updateAnnouncement,
@@ -436,6 +438,8 @@ export function ConsumptionPage({ households }) {
 }
 
 export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPayment, receiveCashPayment, handleRejectGcashPayment, showToast, unpaidCount, onGenerateBills, canGenerateBills = true }) {
+  const { tariff } = useTariff();
+
   const paidCount = households.length - unpaidCount;
   const gcashPendingCount = households.filter((h) => h.paymentStatus === "GCash Pending").length;
   const cashPendingCount = households.filter((h) => h.paymentStatus === "Cash Pending").length;
@@ -845,7 +849,7 @@ export function BillingPage({ households, markPaid, markUnpaid, receiveGcashPaym
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-[11px] text-slate-500">
         <div className="font-semibold text-slate-600 mb-0.5">Billing formula & rate reference</div>
-        CC m³ = TC m³ − PC m³  |  Rate: ₱20.00 per m³  |  Minimum billing: ₱200.00  |  1 m³ = 1,000 liters
+        CC m³ = TC m³ − PC m³  |  Rate: {tariff ? "₱" + tariff.ratePerCm3.toFixed(2) : "—"} per m³  |  Minimum billing: {tariff ? "₱" + tariff.minBill.toFixed(2) : "—"}  |  1 m³ = 1,000 liters
         <br />
         CC m³ = Current Consumed m³  |  TC m³ = Total Cumulative Meter Reading  |  PC m³ = Previous Consumed m³
       </div>
@@ -1417,8 +1421,8 @@ function DeviceStatusBadge({ household }) {
 }
 
 // Liters used in each of the last 60 seconds, newest on the right. The device
-// reports every ~15s, and each report carries its per-second counts, so the
-// chart gains ~15 bars at a time (and lags live by up to ~15s).
+// reports every 5s, and each report carries its per-second counts, so the
+// chart gains ~5 bars at a time (and lags live by up to ~5s).
 // Kept only in the browser, so it starts empty when the page loads.
 const PER_SECOND_SLOTS = 60;
 
@@ -1428,7 +1432,7 @@ function PerSecondUsageChart({ liters }) {
   if (!liters.length) {
     return (
       <div className="rounded-lg border border-slate-100 px-3 py-2 text-[11px] text-slate-400">
-        Per-second usage appears here with the next report from the sensor (within about 15 seconds; needs the updated ESP firmware).
+        Per-second usage appears here with the next report from the sensor (within about 5 seconds; needs the updated ESP firmware).
       </div>
     );
   }
@@ -2760,17 +2764,44 @@ export function RecordsPage({ households, showToast }) {
   );
 }
 
-export function SettingsPage({ showToast, adminEmail }) {
+export function SettingsPage({ showToast, adminEmail, isOfficer = false }) {
   const [editing, setEditing] = React.useState(false);
-  const [rate, setRate] = React.useState(RATE_PER_CM3);
-  const [minBill, setMinBill] = React.useState(MIN_BILL);
-  const [gateway, setGateway] = React.useState("GCash");
+  const { tariff, reload: reloadTariff } = useTariff();
+  const [rateDraft, setRateDraft] = React.useState("");
+  const [minDraft, setMinDraft] = React.useState("");
+  const [tariffError, setTariffError] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
 
-  function handleSave() {
+  function startEditing() {
+    setRateDraft(tariff ? String(tariff.ratePerCm3) : "");
+    setMinDraft(tariff ? String(tariff.minBill) : "");
+    setTariffError("");
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setTariffError("");
     setEditing(false);
-    if (typeof showToast === "function") {
-      showToast("Settings updated for this session.", "success");
+  }
+
+  async function handleSave() {
+    setTariffError("");
+    if (isOfficer) {
+      setSaving(true);
+      try {
+        await updateTariffApi({ ratePerCm3: Number(rateDraft), minBill: Number(minDraft) });
+        await reloadTariff();
+      } catch (err) {
+        setTariffError(err.message);
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      if (typeof showToast === "function") {
+        showToast("Billing rate saved. It applies to bills generated from now on.", "success");
+      }
     }
+    setEditing(false);
   }
 
   return (
@@ -2780,39 +2811,45 @@ export function SettingsPage({ showToast, adminEmail }) {
         <div className="card-hover bg-white rounded-lg border border-slate-200 p-5 text-[12px] space-y-4">
           <div className="flex items-center justify-between pb-1">
             <span className="font-semibold text-slate-700 text-[13px]">Billing configuration</span>
-            <button
-              onClick={() => setEditing(!editing)}
-              className="text-[12px] text-sky-600 hover:text-sky-800 font-medium"
-            >
-              {editing ? "Cancel" : "Edit"}
-            </button>
+            {isOfficer && (
+              <button
+                onClick={() => (editing ? cancelEditing() : startEditing())}
+                className="text-[12px] text-sky-600 hover:text-sky-800 font-medium"
+              >
+                {editing ? "Cancel" : "Edit"}
+              </button>
+            )}
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Rate per m³</span>
-            {editing ? (
+            {editing && isOfficer ? (
               <input
                 type="number"
-                value={rate}
-                onChange={(e) => setRate(Number(e.target.value))}
+                min="0"
+                step="0.01"
+                value={rateDraft}
+                onChange={(e) => setRateDraft(e.target.value)}
                 className="w-24 border border-slate-300 rounded-md px-2 py-1 text-right text-[12px] focus:outline-none focus:border-sky-400"
               />
             ) : (
-              <span className="font-medium">{peso(rate)}</span>
+              <span className="font-medium">{tariff ? peso(tariff.ratePerCm3) : "—"}</span>
             )}
           </div>
 
           <div className="flex justify-between items-center">
             <span className="text-slate-500">Minimum billing</span>
-            {editing ? (
+            {editing && isOfficer ? (
               <input
                 type="number"
-                value={minBill}
-                onChange={(e) => setMinBill(Number(e.target.value))}
+                min="0"
+                step="1"
+                value={minDraft}
+                onChange={(e) => setMinDraft(e.target.value)}
                 className="w-24 border border-slate-300 rounded-md px-2 py-1 text-right text-[12px] focus:outline-none focus:border-sky-400"
               />
             ) : (
-              <span className="font-medium">{peso(minBill)}</span>
+              <span className="font-medium">{tariff ? peso(tariff.minBill) : "—"}</span>
             )}
           </div>
 
@@ -2821,32 +2858,12 @@ export function SettingsPage({ showToast, adminEmail }) {
             <span className="font-medium">{BILLING_PERIOD}</span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Payment gateway</span>
-            {editing ? (
-              <select
-                value={gateway}
-                onChange={(e) => setGateway(e.target.value)}
-                className="border border-slate-300 rounded-md px-2 py-1 text-[12px] focus:outline-none focus:border-sky-400"
-              >
-                <option value="GCash">GCash</option>
-                <option value="Maya">Maya</option>
-                <option value="Cash only">Cash only</option>
-              </select>
-            ) : (
-              <span className="font-medium">{gateway}</span>
-            )}
-          </div>
-
           {editing ? (
-            <div className="pt-2 border-t border-slate-100">
-              <Btn variant="primary" onClick={handleSave}>Save Changes</Btn>
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              {tariffError && <div className="text-[11px] text-rose-600">{tariffError}</div>}
+              <Btn variant="primary" onClick={handleSave}>{saving ? "Saving…" : "Save Changes"}</Btn>
             </div>
-          ) : (
-            <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-100">
-              Changes apply to this session only and are not persisted to a backend in this prototype.
-            </div>
-          )}
+          ) : null}
         </div>
 
         <AlertDetectionSettingsCard showToast={showToast} />

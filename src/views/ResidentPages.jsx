@@ -1970,7 +1970,7 @@ export function ResidentAnnouncements() {
 // ─────────────────────────────────────────────────────────────
 // REPORT LEAK
 // ─────────────────────────────────────────────────────────────
-export function ResidentReportLeak({ me, useApi }) {
+export function ResidentReportLeak({ me }) {
   const [formState, setFormState] = useState({
     location: "",
     description: "",
@@ -1987,11 +1987,6 @@ export function ResidentReportLeak({ me, useApi }) {
   async function handleSubmit() {
     if (!formState.location || !formState.description) return;
     setError("");
-
-    if (!useApi) {
-      setSubmitted(true);
-      return;
-    }
 
     setSubmitting(true);
     try {
