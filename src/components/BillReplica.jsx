@@ -1,5 +1,5 @@
 import React from "react";
-import { peso, formatDueDate, dueDateForPeriod, billingDateForPeriod, usedCm3, fmtCm3 } from "../data";
+import { peso, formatDueDate, dueDateForPeriod, usedCm3, fmtCm3 } from "../data";
 
 // Shared bill statement layout — used by the resident's "My Bills" page, the
 // admin's Bill Statements page, and the GCash payment receipt, so all three
@@ -107,12 +107,6 @@ export function BillReplica({ me, paymentStamp, period }) {
           <div className="flex items-center gap-1">
             <span className="bg-sky-100 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 uppercase">Meter #</span>
             <span className="font-semibold text-slate-700">{me.meter}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">Billing Date:</span>
-            <span className="ml-1 font-semibold text-slate-700">
-              {formatDueDate(billingDateForPeriod(selectedPeriod.label))}
-            </span>
           </div>
           <div>
             <span className="text-slate-500">Date of Connection:</span>
