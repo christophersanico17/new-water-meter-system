@@ -727,7 +727,8 @@ router.post("/bills/:id/gcash/reject", authMiddleware("admin"), (req, res) => {
 
     db.prepare(
       `UPDATE bills SET payment_status = 'Unpaid', payment_method = NULL, payment_ref = NULL,
-                        receipt_image = NULL, payment_rejection_reason = ?, payment_date = NULL
+                        receipt_image = NULL, payment_rejection_reason = ?, payment_date = NULL,
+                        gcash_fee = 0, total_due = ROUND(amount + prev_balance, 2)
        WHERE id = ?`
     ).run(reason, req.params.id);
 
