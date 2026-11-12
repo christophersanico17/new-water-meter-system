@@ -66,13 +66,21 @@ function checkRealTimeFlow(householdId, flowRateLpm, settings, highFlowLpm) {
   // Walk back through recent *device* readings while flow has stayed
   // continuously at/above the leak threshold — source = 'device' excludes
   // seed/mock/manual rows from the streak.
+  //
+  // The look-back is a time window, not a row count: the device reports every
+  // 5 s, so a fixed "last 60 readings" only ever covered 5 minutes and a
+  // 15-minute streak could never be seen. The window only has to reach back
+  // leakSustainedMinutes (plus one allowed gap) to prove the streak is long
+  // enough; anything older can't change the verdict.
+  const lookbackMinutes = settings.leakSustainedMinutes + settings.leakMaxGapMinutes;
   const recent = db
     .prepare(
       `SELECT flow_rate, recorded_at FROM readings
        WHERE household_id = ? AND source = 'device'
-       ORDER BY recorded_at DESC LIMIT 60`
+         AND recorded_at >= datetime('now', ?)
+       ORDER BY recorded_at DESC`
     )
-    .all(householdId);
+    .all(householdId, `-${lookbackMinutes} minutes`);
   const streakMinutes = computeLeakStreakMinutes(recent, settings, Date.now());
 
   const types = classifyRealTimeFlow(flowRateLpm, streakMinutes, settings, highFlowLpm);
@@ -334,5 +342,6 @@ router.post("/households/:id/device/calibration", authMiddleware("admin", ["offi
 router.startDeviceSilenceMonitor = startDeviceSilenceMonitor;
 router.stopDeviceSilenceMonitor = stopDeviceSilenceMonitor;
 router.checkDeviceSilence = checkDeviceSilence;
+router.checkRealTimeFlow = checkRealTimeFlow;
 
 module.exports = router;
