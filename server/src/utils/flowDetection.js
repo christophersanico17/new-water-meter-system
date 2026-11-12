@@ -96,9 +96,61 @@ function classifyConsumptionRatio(consumption, avgConsumption, settings) {
   return ratio >= settings.leakUsageRatio ? "Leak Detected" : "High Flow";
 }
 
+// Scans stored *device* readings (oldest first) for leak episodes: runs where
+// flow stayed continuously at/above leakFlowLpm (no gap over
+// leakMaxGapMinutes) for at least leakSustainedMinutes. This is the same rule
+// the live check applies on every reading, run after the fact, so readings
+// that arrived while live detection was broken can still be checked.
+// Each episode reports when flow began, when the live rule would have fired
+// (leakSustainedMinutes after it began), when it ended, and its flow rates.
+function findLeakEpisodes(readingsAsc, settings) {
+  const { leakFlowLpm, leakSustainedMinutes, leakMaxGapMinutes } = settings;
+  const episodes = [];
+  let run = null;
+  let prevMs = null;
+
+  const close = () => {
+    if (!run) return;
+    const minutes = (run.endMs - run.startMs) / 60000;
+    if (minutes >= leakSustainedMinutes) {
+      episodes.push({
+        startMs: run.startMs,
+        detectMs: run.startMs + leakSustainedMinutes * 60000,
+        endMs: run.endMs,
+        minutes,
+        avgLpm: run.sum / run.count,
+        minLpm: run.min,
+        maxLpm: run.max,
+        readings: run.count,
+      });
+    }
+    run = null;
+  };
+
+  for (const r of readingsAsc) {
+    const ms = toMs(r.recorded_at);
+    const gapMinutes = prevMs === null ? 0 : (ms - prevMs) / 60000;
+    const above = r.flow_rate >= leakFlowLpm;
+    if (above && run && gapMinutes <= leakMaxGapMinutes) {
+      run.endMs = ms;
+      run.count++;
+      run.sum += r.flow_rate;
+      run.min = Math.min(run.min, r.flow_rate);
+      run.max = Math.max(run.max, r.flow_rate);
+    } else {
+      close();
+      if (above) run = { startMs: ms, endMs: ms, count: 1, sum: r.flow_rate, min: r.flow_rate, max: r.flow_rate };
+    }
+    prevMs = ms;
+  }
+  close();
+  return episodes;
+}
+
 module.exports = {
   toMs,
   computeLeakStreakMinutes,
+  findLeakEpisodes,
   computeAdaptiveHighFlowLpm,
   classifyRealTimeFlow,
   classifyConsumptionRatio,

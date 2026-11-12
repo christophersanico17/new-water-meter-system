@@ -5,6 +5,7 @@ const {
   computeAdaptiveHighFlowLpm,
   classifyRealTimeFlow,
   classifyConsumptionRatio,
+  findLeakEpisodes,
 } = require("../src/utils/flowDetection");
 
 const settings = {
@@ -142,4 +143,47 @@ test("classifyConsumptionRatio: at/above highUsageRatio but below leakUsageRatio
 test("classifyConsumptionRatio: at/above leakUsageRatio -> Leak Detected", () => {
   assert.equal(classifyConsumptionRatio(22, 10, settings), "Leak Detected"); // 2.2x
   assert.equal(classifyConsumptionRatio(50, 10, settings), "Leak Detected"); // 5x
+});
+
+// ── findLeakEpisodes: the same leak rule, run over stored readings ──
+
+// Readings every 5 s, oldest first, from `startMs` for `minutes`, all at `lpm`.
+function steadyRun(startMs, minutes, lpm) {
+  const out = [];
+  for (let s = 0; s <= minutes * 60; s += 5) {
+    out.push({ flow_rate: lpm, recorded_at: new Date(startMs + s * 1000).toISOString().slice(0, 19).replace("T", " ") });
+  }
+  return out;
+}
+
+test("findLeakEpisodes: a 20-minute run at 2.5 L/min is one episode, detected 15 min after it began", () => {
+  const start = Date.UTC(2026, 10, 12, 3, 0, 0);
+  const episodes = findLeakEpisodes(steadyRun(start, 20, 2.5), settings);
+  assert.equal(episodes.length, 1);
+  assert.equal(episodes[0].startMs, start);
+  assert.equal(episodes[0].detectMs, start + 15 * 60000);
+  assert.equal(episodes[0].minutes, 20);
+  assert.equal(episodes[0].avgLpm, 2.5);
+});
+
+test("findLeakEpisodes: a run shorter than leakSustainedMinutes is not an episode", () => {
+  const start = Date.UTC(2026, 10, 12, 3, 0, 0);
+  assert.deepEqual(findLeakEpisodes(steadyRun(start, 10, 2.5), settings), []);
+});
+
+test("findLeakEpisodes: flow below leakFlowLpm splits a run into separate episodes", () => {
+  const start = Date.UTC(2026, 10, 12, 3, 0, 0);
+  const first = steadyRun(start, 16, 2.5);
+  const pause = [{ flow_rate: 0, recorded_at: new Date(start + 16 * 60000 + 5000).toISOString().slice(0, 19).replace("T", " ") }];
+  const second = steadyRun(start + 17 * 60000, 16, 3);
+  const episodes = findLeakEpisodes([...first, ...pause, ...second], settings);
+  assert.equal(episodes.length, 2);
+  assert.equal(episodes[1].avgLpm, 3);
+});
+
+test("findLeakEpisodes: a reporting gap longer than leakMaxGapMinutes breaks the run", () => {
+  const start = Date.UTC(2026, 10, 12, 3, 0, 0);
+  const before = steadyRun(start, 10, 2.5);
+  const after = steadyRun(start + 20 * 60000, 10, 2.5); // 10-minute silence in between
+  assert.deepEqual(findLeakEpisodes([...before, ...after], settings), []);
 });
