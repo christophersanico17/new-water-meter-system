@@ -261,6 +261,14 @@ function initSchema() {
   if (!alertColumns.includes("status_changed_at")) {
     db.exec("ALTER TABLE alerts ADD COLUMN status_changed_at TEXT");
   }
+  // The resident's own answer to "is this usage normal?" — 'Normal' or
+  // 'Not Normal', null until they answer (and cleared again on reopen).
+  if (!alertColumns.includes("resident_feedback")) {
+    db.exec("ALTER TABLE alerts ADD COLUMN resident_feedback TEXT");
+  }
+  if (!alertColumns.includes("resident_feedback_at")) {
+    db.exec("ALTER TABLE alerts ADD COLUMN resident_feedback_at TEXT");
+  }
 
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_households_device_key ON households(device_key) WHERE device_key IS NOT NULL");
   // Real-time detection looks up a household's readings by time range (leak

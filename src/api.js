@@ -443,6 +443,10 @@ export async function fetchMyAlerts() {
   return request("/alerts/mine", { auth: "resident" });
 }
 
+export async function submitAlertFeedback(alertId, feedback) {
+  return request(`/alerts/${alertId}/feedback`, { method: "POST", body: { feedback }, auth: "resident" });
+}
+
 // ── Detection settings ───────────────────────────────────────
 // Real-time leak / abnormal-usage thresholds (routes/settings.js). Read on
 // the admin Settings page and by the detectors themselves server-side.

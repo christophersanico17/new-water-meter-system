@@ -1129,6 +1129,11 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
                 <td className="px-3 py-1.5 text-right text-slate-400">{a.time}</td>
                 <td className="px-3 py-1.5 text-center">
                   {a.status === "Unresolved" ? <Badge tone="bad">Unresolved</Badge> : <Badge tone="good">Resolved</Badge>}
+                  {a.residentFeedback && (
+                    <div className={`text-[11px] mt-0.5 whitespace-nowrap font-medium ${a.residentFeedback === "Normal" ? "text-emerald-600" : "text-rose-600"}`}>
+                      Resident: {a.residentFeedback}
+                    </div>
+                  )}
                   <div className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">
                     {(a.statusChangedAt || a.createdAt) instanceof Date
                       ? (a.statusChangedAt || a.createdAt).toLocaleString("en-PH", {
@@ -1232,6 +1237,12 @@ export function AlertsPage({ alerts, filter, setFilter, selectedAlertId, setSele
                 <div className="bg-slate-50 rounded-lg px-3 py-2">
                   <div className="text-[10px] text-slate-400 uppercase tracking-wide">Threshold</div>
                   <div className="font-semibold text-slate-700">{viewed.threshold}</div>
+                </div>
+                <div className="bg-slate-50 rounded-lg px-3 py-2 col-span-2">
+                  <div className="text-[10px] text-slate-400 uppercase tracking-wide">Resident response</div>
+                  <div className={`font-semibold ${viewed.residentFeedback === "Normal" ? "text-emerald-600" : viewed.residentFeedback === "Not Normal" ? "text-rose-600" : "text-slate-400"}`}>
+                    {viewed.residentFeedback || "No response yet"}
+                  </div>
                 </div>
               </div>
 

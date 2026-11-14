@@ -11,7 +11,7 @@ import {
   submitGcashReference, initiateGcash, cancelGcash, recordCash, recordUnpaid, confirmGcash, confirmCash, syncGcashByHousehold, rejectGcash,
   residentLogin, residentLogout,
   updateResidentProfile, resetResidentPassword, confirmResidentPasswordReset, resolveAlertApi, unresolveAlertApi,
-  createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts,
+  createHousehold, setHouseholdEmail, fetchAlerts, fetchMyAlerts, submitAlertFeedback,
   fetchLeakReports, resolveLeakReportApi, unresolveLeakReportApi,
   provisionDevice, revokeDevice, setDeviceCalibration, liveEventsUrl,
   updateAdminProfile,
@@ -158,6 +158,7 @@ export default function WaterSystemPrototype() {
           }),
           status: a.status,
           statusChangedAt: new Date((a.status_changed_at || a.created_at).replace(" ", "T") + "Z"),
+          residentFeedback: a.resident_feedback || null,
         }))
       );
       // Functional updates avoid reading activeResidentId/residentLoginHouseholdId
@@ -434,6 +435,7 @@ export default function WaterSystemPrototype() {
           }),
           status: a.status,
           statusChangedAt: new Date((a.status_changed_at || a.created_at).replace(" ", "T") + "Z"),
+          residentFeedback: a.resident_feedback || null,
         },
         ...prev,
       ].slice(0, 50));
@@ -453,7 +455,19 @@ export default function WaterSystemPrototype() {
     // existing "No Sensor Data" alert server-side instead of raising a new one.
     source.addEventListener("alert_reopened", (e) => {
       const { id, flowRate } = JSON.parse(e.data);
-      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Unresolved", flowRate, statusChangedAt: new Date() } : a)));
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: "Unresolved", flowRate, statusChangedAt: new Date(), residentFeedback: null } : a)));
+    });
+
+    source.addEventListener("alert_feedback", (e) => {
+      const { id, feedback, status } = JSON.parse(e.data);
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? { ...a, residentFeedback: feedback, status, statusChangedAt: status !== a.status ? new Date() : a.statusChangedAt }
+            : a
+        )
+      );
+      if (feedback === "Not Normal") showToast(`Resident confirmed alert ${id} is not normal`, "warn");
     });
 
     // EventSource surfaces connection drops as a generic error with no
@@ -490,6 +504,7 @@ export default function WaterSystemPrototype() {
               month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
             }),
             status: a.status,
+            residentFeedback: a.resident_feedback || null,
           }))
         );
       })
@@ -581,6 +596,19 @@ export default function WaterSystemPrototype() {
     }
   }
 
+  async function answerAlert(id, feedback) {
+    try {
+      const { status } = await submitAlertFeedback(id, feedback);
+      setMyAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, residentFeedback: feedback, status } : a)));
+      showToast(
+        feedback === "Normal" ? "Thanks — alert marked as normal usage." : "Thanks — the barangay office has been notified.",
+        "success"
+      );
+    } catch (err) {
+      showToast("Could not send your answer: " + err.message, "warn");
+    }
+  }
+
   // Opening the confirmation modal — both the table row and the detail panel
   // route through these so resolving/unresolving always asks first. Unresolve
   // exists so an admin can undo an alert that was resolved by accident.
@@ -602,7 +630,13 @@ export default function WaterSystemPrototype() {
       showToast(`Could not ${action} alert: ` + err.message, "warn");
       return;
     }
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: nextStatus, statusChangedAt: new Date() } : a)));
+    setAlerts((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? { ...a, status: nextStatus, statusChangedAt: new Date(), ...(resolving ? {} : { residentFeedback: null }) }
+          : a
+      )
+    );
     showToast(`Alert marked as ${nextStatus.toLowerCase()}`, "success");
   }
 
@@ -767,6 +801,7 @@ export default function WaterSystemPrototype() {
           page={residentPage}
           setPage={setResidentPage}
           myAlerts={myAlerts}
+          onAlertFeedback={answerAlert}
           residentAuthenticated={residentAuthenticated}
           onResidentLogin={handleResidentLogin}
           onResidentLogout={handleResidentLogout}

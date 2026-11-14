@@ -4,6 +4,7 @@ const { db } = require("../db/database");
 const { authMiddleware, optionalAuth } = require("../utils/auth");
 const { recordAudit } = require("../utils/audit");
 const alerts = require("../utils/alerts");
+const events = require("../utils/events");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
 const { computeBillAmount } = require("../utils/tariff");
@@ -993,11 +994,44 @@ router.post("/alerts/:id/resolve", authMiddleware("admin", ["officer"]), (req, r
 // Undo an accidental resolve — moves an alert back to Unresolved.
 router.post("/alerts/:id/unresolve", authMiddleware("admin", ["officer"]), (req, res) => {
   const result = db
-    .prepare("UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now') WHERE id = ?")
+    .prepare(
+      `UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now'),
+         resident_feedback = NULL, resident_feedback_at = NULL WHERE id = ?`
+    )
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "Alert not found." });
   recordAudit(req, "alert.unresolve", req.params.id, `Reopened alert ${req.params.id}`);
   res.json({ success: true });
+});
+
+// Resident answers whether a flagged usage was expected. "Normal" (e.g. they
+// were filling a tank) resolves the alert; "Not Normal" keeps it open so the
+// office knows the resident confirmed a real problem.
+router.post("/alerts/:id/feedback", authMiddleware("resident"), (req, res) => {
+  const { feedback } = req.body || {};
+  if (feedback !== "Normal" && feedback !== "Not Normal") {
+    return res.status(400).json({ error: "Feedback must be 'Normal' or 'Not Normal'." });
+  }
+  const alert = db
+    .prepare("SELECT id, status FROM alerts WHERE id = ? AND household_id = ?")
+    .get(req.params.id, req.user.householdId);
+  if (!alert) return res.status(404).json({ error: "Alert not found." });
+  if (alert.status !== "Unresolved") {
+    return res.status(409).json({ error: "This alert is already resolved." });
+  }
+  if (feedback === "Normal") {
+    db.prepare(
+      `UPDATE alerts SET resident_feedback = 'Normal', resident_feedback_at = datetime('now'),
+         status = 'Resolved', resolved_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?`
+    ).run(alert.id);
+  } else {
+    db.prepare(
+      "UPDATE alerts SET resident_feedback = 'Not Normal', resident_feedback_at = datetime('now') WHERE id = ?"
+    ).run(alert.id);
+  }
+  const status = feedback === "Normal" ? "Resolved" : "Unresolved";
+  events.broadcast("alert_feedback", { id: alert.id, feedback, status });
+  res.json({ success: true, feedback, status });
 });
 
 // ───────────────────────────────────────────────────────────

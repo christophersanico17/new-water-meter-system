@@ -82,7 +82,8 @@ function reopenRecentlyResolved(householdId, type, withinMinutes, flowRateLabel)
     .get(householdId, type, `-${withinMinutes} minutes`);
   if (!row) return null;
   db.prepare(
-    `UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now'), flow_rate = ? WHERE id = ?`
+    `UPDATE alerts SET status = 'Unresolved', resolved_at = NULL, status_changed_at = datetime('now'), flow_rate = ?,
+       resident_feedback = NULL, resident_feedback_at = NULL WHERE id = ?`
   ).run(
     flowRateLabel,
     row.id

@@ -865,7 +865,7 @@ function LiveUsageCard({ me }) {
   );
 }
 
-export function ResidentDashboard({ me, setPage, alerts = [] }) {
+export function ResidentDashboard({ me, setPage, alerts = [], onAlertFeedback }) {
   const maxConsumption = Math.max(...me.history.map((h) => h.curr - h.prev), 1);
 
   return (
@@ -973,8 +973,12 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
             Recent flow alerts
           </div>
           <div className="divide-y divide-slate-100">
-            {alerts.slice(0, 5).map((a) => (
-              <div key={a.id} className="px-4 py-2.5 flex items-center justify-between text-[12px]">
+            {alerts.slice(0, 5).map((a) => {
+              const needsAnswer =
+                a.status === "Unresolved" && !a.residentFeedback && (a.type === "Leak Detected" || a.type === "High Flow");
+              return (
+              <div key={a.id} className="px-4 py-2.5 text-[12px]">
+              <div className="flex items-center justify-between">
                 <div>
                   <span
                     className={
@@ -987,13 +991,45 @@ export function ResidentDashboard({ me, setPage, alerts = [] }) {
                   </span>
                   <span className="text-slate-400 ml-2">{a.time}</span>
                 </div>
-                {a.status === "Unresolved" ? (
-                  <Badge tone="bad">Unresolved</Badge>
-                ) : (
-                  <Badge tone="good">Resolved</Badge>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {a.residentFeedback && (
+                    <span className={`text-[11px] ${a.residentFeedback === "Normal" ? "text-emerald-600" : "text-rose-600"}`}>
+                      You said: {a.residentFeedback}
+                    </span>
+                  )}
+                  {a.status === "Unresolved" ? (
+                    <Badge tone="bad">Unresolved</Badge>
+                  ) : (
+                    <Badge tone="good">Resolved</Badge>
+                  )}
+                </div>
               </div>
-            ))}
+              {needsAnswer && (
+                <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-amber-800">
+                    Is this water usage normal for your household?
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onAlertFeedback?.(a.id, "Normal")}
+                      className="h-7 px-3 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition"
+                    >
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAlertFeedback?.(a.id, "Not Normal")}
+                      className="h-7 px-3 rounded-md bg-rose-600 text-white text-[11px] font-semibold hover:bg-rose-700 transition"
+                    >
+                      Not Normal
+                    </button>
+                  </div>
+                </div>
+              )}
+              </div>
+              );
+            })}
           </div>
         </div>
       )}
