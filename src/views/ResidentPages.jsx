@@ -977,56 +977,67 @@ export function ResidentDashboard({ me, setPage, alerts = [], onAlertFeedback })
               const needsAnswer =
                 a.status === "Unresolved" && !a.residentFeedback && (a.type === "Leak Detected" || a.type === "High Flow");
               return (
-              <div key={a.id} className="px-4 py-2.5 text-[12px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span
-                    className={
-                      a.type === "Leak Detected" ? "text-rose-600 font-medium"
-                        : a.type === "High Flow" ? "text-amber-600 font-medium"
-                        : "text-slate-500 font-medium"
-                    }
-                  >
-                    {a.type}
-                  </span>
-                  <span className="text-slate-400 ml-2">{a.time}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {a.residentFeedback && (
-                    <span className={`text-[11px] ${a.residentFeedback === "Normal" ? "text-emerald-600" : "text-rose-600"}`}>
-                      You said: {a.residentFeedback}
-                    </span>
-                  )}
+              <div
+                key={a.id}
+                className={`px-4 py-3 text-[12px] border-l-2 ${
+                  needsAnswer
+                    ? a.type === "Leak Detected" ? "border-l-rose-500" : "border-l-amber-500"
+                    : "border-l-transparent"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div
+                      className={`font-semibold ${
+                        a.type === "Leak Detected" ? "text-rose-700"
+                          : a.type === "High Flow" ? "text-amber-700"
+                          : "text-slate-600"
+                      }`}
+                    >
+                      {a.type}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {a.flowRate ? <><span className="tabular-nums">{a.flowRate}</span> · </> : null}
+                      {a.time}
+                    </div>
+                  </div>
                   {a.status === "Unresolved" ? (
                     <Badge tone="bad">Unresolved</Badge>
                   ) : (
                     <Badge tone="good">Resolved</Badge>
                   )}
                 </div>
-              </div>
-              {needsAnswer && (
-                <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-amber-800">
-                    Is this water usage normal for your household?
-                  </span>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onAlertFeedback?.(a.id, "Normal")}
-                      className="h-7 px-3 rounded-md bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition"
-                    >
-                      Normal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onAlertFeedback?.(a.id, "Not Normal")}
-                      className="h-7 px-3 rounded-md bg-rose-600 text-white text-[11px] font-semibold hover:bg-rose-700 transition"
-                    >
-                      Not Normal
-                    </button>
+
+                {needsAnswer && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span className="text-slate-700">Is this usage normal for your household?</span>
+                    <div className="inline-flex rounded-md border border-slate-300 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => onAlertFeedback?.(a.id, "Normal")}
+                        className="px-3 h-7 text-[11px] font-semibold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400"
+                      >
+                        Normal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onAlertFeedback?.(a.id, "Not Normal")}
+                        className="px-3 h-7 text-[11px] font-semibold text-rose-700 bg-white border-l border-slate-300 hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-400"
+                      >
+                        Not normal
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {a.residentFeedback === "Normal" && (
+                  <div className="mt-1.5 text-[11px] text-slate-500">You marked this as normal usage.</div>
+                )}
+                {a.residentFeedback === "Not Normal" && (
+                  <div className="mt-1.5 text-[11px] text-rose-700">
+                    You reported this as not normal. The barangay office has been notified.
+                  </div>
+                )}
               </div>
               );
             })}
