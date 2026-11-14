@@ -459,14 +459,8 @@ export default function WaterSystemPrototype() {
     });
 
     source.addEventListener("alert_feedback", (e) => {
-      const { id, feedback, status } = JSON.parse(e.data);
-      setAlerts((prev) =>
-        prev.map((a) =>
-          a.id === id
-            ? { ...a, residentFeedback: feedback, status, statusChangedAt: status !== a.status ? new Date() : a.statusChangedAt }
-            : a
-        )
-      );
+      const { id, feedback } = JSON.parse(e.data);
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, residentFeedback: feedback } : a)));
       if (feedback === "Not Normal") showToast(`Resident confirmed alert ${id} is not normal`, "warn");
     });
 
@@ -598,12 +592,9 @@ export default function WaterSystemPrototype() {
 
   async function answerAlert(id, feedback) {
     try {
-      const { status } = await submitAlertFeedback(id, feedback);
-      setMyAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, residentFeedback: feedback, status } : a)));
-      showToast(
-        feedback === "Normal" ? "Thanks — alert marked as normal usage." : "Thanks — the barangay office has been notified.",
-        "success"
-      );
+      await submitAlertFeedback(id, feedback);
+      setMyAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, residentFeedback: feedback } : a)));
+      showToast("Thanks — your answer was sent to the barangay office.", "success");
     } catch (err) {
       showToast("Could not send your answer: " + err.message, "warn");
     }

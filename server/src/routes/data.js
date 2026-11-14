@@ -1004,9 +1004,9 @@ router.post("/alerts/:id/unresolve", authMiddleware("admin", ["officer"]), (req,
   res.json({ success: true });
 });
 
-// Resident answers whether a flagged usage was expected. "Normal" (e.g. they
-// were filling a tank) resolves the alert; "Not Normal" keeps it open so the
-// office knows the resident confirmed a real problem.
+// Resident answers whether a flagged usage was expected (e.g. "Normal" when
+// they were filling a tank). The answer only informs the office — resolving
+// the alert stays an administrator action.
 router.post("/alerts/:id/feedback", authMiddleware("resident"), (req, res) => {
   const { feedback } = req.body || {};
   if (feedback !== "Normal" && feedback !== "Not Normal") {
@@ -1019,19 +1019,10 @@ router.post("/alerts/:id/feedback", authMiddleware("resident"), (req, res) => {
   if (alert.status !== "Unresolved") {
     return res.status(409).json({ error: "This alert is already resolved." });
   }
-  if (feedback === "Normal") {
-    db.prepare(
-      `UPDATE alerts SET resident_feedback = 'Normal', resident_feedback_at = datetime('now'),
-         status = 'Resolved', resolved_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ?`
-    ).run(alert.id);
-  } else {
-    db.prepare(
-      "UPDATE alerts SET resident_feedback = 'Not Normal', resident_feedback_at = datetime('now') WHERE id = ?"
-    ).run(alert.id);
-  }
-  const status = feedback === "Normal" ? "Resolved" : "Unresolved";
-  events.broadcast("alert_feedback", { id: alert.id, feedback, status });
-  res.json({ success: true, feedback, status });
+  db.prepare("UPDATE alerts SET resident_feedback = ?, resident_feedback_at = datetime('now') WHERE id = ?")
+    .run(feedback, alert.id);
+  events.broadcast("alert_feedback", { id: alert.id, feedback });
+  res.json({ success: true, feedback });
 });
 
 // ───────────────────────────────────────────────────────────

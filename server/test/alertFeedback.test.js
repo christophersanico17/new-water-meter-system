@@ -42,8 +42,10 @@ test("resident answers Normal / Not Normal on their own alerts", async (t) => {
   assert.equal(normal.status, 200);
   assert.deepEqual(
     db.prepare("SELECT status, resident_feedback FROM alerts WHERE id = 'ALT-FB-1'").get(),
-    { status: "Resolved", resident_feedback: "Normal" }
+    { status: "Unresolved", resident_feedback: "Normal" }
   );
+
+  db.prepare("UPDATE alerts SET status = 'Resolved' WHERE id = 'ALT-FB-1'").run();
   assert.equal((await answer("ALT-FB-1", "Not Normal")).status, 409);
 
   const notNormal = await answer("ALT-FB-2", "Not Normal");

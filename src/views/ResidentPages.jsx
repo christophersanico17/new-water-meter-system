@@ -1031,7 +1031,9 @@ export function ResidentDashboard({ me, setPage, alerts = [], onAlertFeedback })
                 )}
 
                 {a.residentFeedback === "Normal" && (
-                  <div className="mt-1.5 text-[11px] text-slate-500">You marked this as normal usage.</div>
+                  <div className="mt-1.5 text-[11px] text-slate-500">
+                    You marked this as normal usage. The barangay office will review and close it.
+                  </div>
                 )}
                 {a.residentFeedback === "Not Normal" && (
                   <div className="mt-1.5 text-[11px] text-rose-700">
