@@ -2231,7 +2231,7 @@ const FAQ = [
   },
   {
     q: "How do I pay my bill online?",
-    a: "Go to Payment History and click the 'Pay Now' button or 'Pay with GCash' button. You will be prompted to confirm the amount. Once confirmed, your payment is recorded automatically.",
+    a: "Click 'Pay with GCash' on your unpaid bill. Scan the QR code with your GCash app and pay the exact amount shown, then submit your GCash reference number, a photo of your receipt, or both. Your payment shows as GCash Pending until the barangay office verifies it, and then the bill is marked Paid.",
   },
   {
     q: "What happens if I get a high-usage alert?",
@@ -2251,7 +2251,7 @@ const FAQ = [
   },
   {
     q: "How do IoT sensors work?",
-    a: "Your household meter is equipped with an Arduino-based flow sensor that continuously tracks water usage. Readings are transmitted in real time to the system. Anomalies such as unusually high flow rates trigger automatic alerts visible on your Dashboard.",
+    a: "Your household meter has an ESP32 microcontroller connected to a YF-S201 water flow sensor. The sensor counts the water passing through your pipe, and the ESP32 sends the reading to the system over Wi-Fi every 5 seconds. Unusual flow, such as a possible leak or very high usage, triggers an automatic alert on your Dashboard.",
   },
 ];
 
