@@ -8,6 +8,7 @@ const { recordAudit } = require("../utils/audit");
 const events = require("../utils/events");
 const alerts = require("../utils/alerts");
 const { getAlertSettings } = require("../utils/settings");
+const { syncOpenBillToReading } = require("../utils/billing");
 const { computeLeakStreakMinutes, computeAdaptiveHighFlowLpm, classifyRealTimeFlow, toMs } = require("../utils/flowDetection");
 
 const router = express.Router();
@@ -250,6 +251,9 @@ router.post("/devices/readings", deviceLimiter, deviceAuthMiddleware, (req, res)
 
   db.prepare("UPDATE households SET device_last_seen = ? WHERE id = ?").run(nowSql, household.id);
 
+  // A bill for the month that is still running follows the meter.
+  const bill = syncOpenBillToReading(household.id, newCm3);
+
   // This reading is proof the device is back — clear any stale "gone quiet"
   // alert instead of leaving it open for an admin to notice and resolve by
   // hand once the device recovers on its own.
@@ -267,6 +271,7 @@ router.post("/devices/readings", deviceLimiter, deviceAuthMiddleware, (req, res)
     pulses,
     perSecondLiters: (samples || []).map((p) => +(p / pulsesPerLiter).toFixed(3)),
     recordedAt: nowSql,
+    bill,
   });
 
   res.json({ success: true, cm3: newCm3, flowRateLpm, litersThisInterval: +liters.toFixed(3) });

@@ -412,6 +412,18 @@ export default function WaterSystemPrototype() {
                 // per-second usage chart. Only lives in the browser —
                 // starts empty when the page loads.
                 perSecondLiters: [...(h.perSecondLiters || []), ...(r.perSecondLiters || [])].slice(-60),
+                // The current-month bill followed this reading on the server.
+                ...(r.bill && r.bill.period === h.period
+                  ? {
+                      billCm3: r.bill.currCm3,
+                      consumption: r.bill.consumption,
+                      amount: r.bill.amount,
+                      totalDue: r.bill.totalDue,
+                      history: (h.history || []).map((rec) =>
+                        rec.period === r.bill.period ? { ...rec, curr: r.bill.currCm3, amt: r.bill.amount } : rec
+                      ),
+                    }
+                  : {}),
               }
             : h
         )

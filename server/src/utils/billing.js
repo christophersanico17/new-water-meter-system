@@ -63,4 +63,45 @@ function unsettleCarriedBalances(billId) {
   }
 }
 
-module.exports = { settleCarriedBalances, unsettleCarriedBalances, CARRIED_REF_PREFIX };
+// ── Bills for a month that is still running ─────────────────────────────
+// A bill can be generated before its month ends (e.g. a November bill made on
+// November 20). Until the month ends, that bill keeps following the meter, so
+// its current reading and amount always match the live reading. Once the month
+// has ended (Philippine time), the bill stays as it is.
+const { computeBillAmount } = require("./tariff");
+
+const PH_OFFSET_MS = 8 * 60 * 60 * 1000;
+const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function isPeriodOpen(period, nowMs = Date.now()) {
+  const [monthName, yearText] = String(period).split(" ");
+  const monthIndex = MONTH_SHORT_NAMES.indexOf(monthName);
+  if (monthIndex === -1) return false;
+  return nowMs < Date.UTC(Number(yearText), monthIndex + 1, 1) - PH_OFFSET_MS;
+}
+
+const getLatestBill = db.prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1");
+const setBillReading = db.prepare("UPDATE bills SET curr_cm3 = ?, amount = ?, total_due = ? WHERE id = ?");
+
+// Moves the household's unpaid current-month bill up to a new meter reading.
+// Returns the updated bill figures, or null when nothing changed (no bill,
+// already paid or being paid, month already ended, or reading not higher).
+function syncOpenBillToReading(householdId, cm3) {
+  const bill = getLatestBill.get(householdId);
+  if (!bill || bill.payment_status !== "Unpaid" || !isPeriodOpen(bill.period)) return null;
+  if (!(cm3 > bill.curr_cm3)) return null;
+
+  const consumption = +(cm3 - bill.prev_cm3).toFixed(4);
+  const amount = computeBillAmount(consumption);
+  const totalDue = round2(amount + bill.prev_balance + (bill.gcash_fee || 0));
+  setBillReading.run(cm3, amount, totalDue, bill.id);
+  return { period: bill.period, currCm3: cm3, consumption, amount, totalDue };
+}
+
+module.exports = {
+  settleCarriedBalances,
+  unsettleCarriedBalances,
+  CARRIED_REF_PREFIX,
+  isPeriodOpen,
+  syncOpenBillToReading,
+};

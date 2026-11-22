@@ -8,7 +8,7 @@ const events = require("../utils/events");
 const { getAlertSettings } = require("../utils/settings");
 const { classifyConsumptionRatio } = require("../utils/flowDetection");
 const { computeBillAmount } = require("../utils/tariff");
-const { settleCarriedBalances, unsettleCarriedBalances } = require("../utils/billing");
+const { settleCarriedBalances, unsettleCarriedBalances, isPeriodOpen } = require("../utils/billing");
 const { moveToTrash, restoreFromTrash, TRASH_DAYS } = require("../utils/trash");
 
 const router = express.Router();
@@ -345,16 +345,6 @@ function periodCutoffUtc(period) {
   const monthIndex = MONTH_SHORT_NAMES.indexOf(monthName);
   const endMs = Date.UTC(Number(yearText), monthIndex + 1, 1) - PH_OFFSET_MS - 1000;
   return sqlUtc(new Date(Math.min(endMs, Date.now())));
-}
-
-// True while the bill's month has not ended yet (Philippine time), e.g. a
-// November bill generated before November 30. Such a bill keeps following new
-// meter readings; a bill for a month that has ended does not.
-function isPeriodOpen(period) {
-  const [monthName, yearText] = String(period).split(" ");
-  const monthIndex = MONTH_SHORT_NAMES.indexOf(monthName);
-  if (monthIndex === -1) return false;
-  return Date.now() < Date.UTC(Number(yearText), monthIndex + 1, 1) - PH_OFFSET_MS;
 }
 
 // Creates one bill per household for the period (skips households already billed).
