@@ -112,3 +112,33 @@ test("a manual reading after the bill's month leaves the closed bill alone", asy
   assert.equal(bill.amount, 265);
   assert.equal(bill.total_due, 713);
 });
+
+test("a bill whose month is still running follows a new manual reading", async (t) => {
+  // The current month in Philippine time, e.g. "Nov 2026".
+  const ph = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const period = `${months.at(ph.getUTCMonth())} ${ph.getUTCFullYear()}`;
+
+  db.prepare("INSERT INTO households (id, name, standpost, meter) VALUES (?, ?, ?, ?)")
+    .run("HH-OP-1", "Open Period", 3, "M-OP-1");
+  const billId = db.prepare(
+    `INSERT INTO bills (household_id, period, prev_cm3, curr_cm3, amount, prev_balance, total_due)
+     VALUES ('HH-OP-1', ?, 343.39, 356.6, 265, 448, 713)`
+  ).run(period).lastInsertRowid;
+  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES ('HH-OP-1', 356.6, 0, 'Normal', 'device')").run();
+
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+  const token = signToken({ role: "admin", email: "officer-cs@test.local", staffRole: "officer" });
+  const res = await fetch(`http://127.0.0.1:${port}/readings`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ householdId: "HH-OP-1", cm3: 358.715, flowRate: 0 }),
+  });
+  assert.equal(res.status, 200);
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
+  assert.equal(bill.curr_cm3, 358.715);
+  assert.equal(bill.amount, 307);
+  assert.equal(bill.total_due, 755);
+});

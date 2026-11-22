@@ -347,6 +347,16 @@ function periodCutoffUtc(period) {
   return sqlUtc(new Date(Math.min(endMs, Date.now())));
 }
 
+// True while the bill's month has not ended yet (Philippine time), e.g. a
+// November bill generated before November 30. Such a bill keeps following new
+// meter readings; a bill for a month that has ended does not.
+function isPeriodOpen(period) {
+  const [monthName, yearText] = String(period).split(" ");
+  const monthIndex = MONTH_SHORT_NAMES.indexOf(monthName);
+  if (monthIndex === -1) return false;
+  return Date.now() < Date.UTC(Number(yearText), monthIndex + 1, 1) - PH_OFFSET_MS;
+}
+
 // Creates one bill per household for the period (skips households already billed).
 function generateBillsForPeriod(period, req) {
   const cutoff = periodCutoffUtc(period);
@@ -879,14 +889,18 @@ router.post("/readings", authMiddleware("admin", ["officer"]), (req, res) => {
     `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, ?, ?, 'manual')`
   ).run(householdId, cm3, flowRate, flowType || "Normal");
 
-  // The latest bill covers a month that has already closed, so a new reading
-  // above the bill's own reading is water used after the bill: it goes on the
-  // next bill and leaves this one alone. Only a reading below the billed
-  // reading (the billed reading was too high) corrects the unpaid bill.
+  // An unpaid bill whose month is still running keeps following the meter.
+  // Once its month has ended, a higher reading is next month's water and the
+  // bill is left alone; only a reading below the billed reading (the billed
+  // reading was too high) still corrects it.
   const openBill = db
     .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
     .get(householdId);
-  if (openBill && openBill.payment_status === "Unpaid" && cm3 < openBill.curr_cm3) {
+  if (
+    openBill &&
+    openBill.payment_status === "Unpaid" &&
+    (isPeriodOpen(openBill.period) || cm3 < openBill.curr_cm3)
+  ) {
     const consumption = +(cm3 - openBill.prev_cm3).toFixed(4);
     const amount = computeBillAmount(Math.max(consumption, 0));
     const totalDue = +(amount + openBill.prev_balance).toFixed(2);
@@ -920,11 +934,10 @@ router.post("/readings/reset", authMiddleware("admin", ["officer"]), (req, res) 
   if (billIsOpen && cm3 < openBill.prev_cm3) {
     return res.status(400).json({ error: `Cannot be lower than the bill's starting reading (${openBill.prev_cm3} m³).` });
   }
-  // The latest bill covers a month that has already closed, so a reset only
-  // changes it when the new reading is below the bill's own reading (the
-  // billed reading itself was too high). A reset above it corrects water used
-  // after the bill, which belongs on the next bill, not this one.
-  const rebillOpenBill = billIsOpen && cm3 < openBill.curr_cm3;
+  // Same rule as a manual reading: an unpaid bill whose month is still running
+  // follows the reset; once its month has ended, only a reset below the billed
+  // reading (the billed reading itself was too high) changes it.
+  const rebillOpenBill = billIsOpen && (isPeriodOpen(openBill.period) || cm3 < openBill.curr_cm3);
 
   const removed = db.transaction(() => {
     const deleted = db.prepare("DELETE FROM readings WHERE household_id = ? AND cm3 > ?").run(householdId, cm3);
