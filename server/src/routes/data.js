@@ -497,7 +497,8 @@ router.post("/bills/:id/recalculate", authMiddleware("admin", ["officer"]), (req
 // POST /api/bills/:id/correct-start  (officer/admin) — sets the starting meter
 // reading of a household's latest unpaid bill, for when the system began
 // counting after the meter already had a total. The bill's current reading is
-// the household's latest device reading. Body: { prevCm3 }
+// the household's last reading up to the end of the bill's period (water used
+// after the month closed belongs on the next bill). Body: { prevCm3 }
 router.post("/bills/:id/correct-start", authMiddleware("admin", ["officer"]), (req, res) => {
   const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(req.params.id);
   if (!bill) return res.status(404).json({ error: "Bill not found." });
@@ -514,8 +515,8 @@ router.post("/bills/:id/correct-start", authMiddleware("admin", ["officer"]), (r
     return res.status(400).json({ error: "Enter a starting reading of 0 or more." });
   }
   const reading = db
-    .prepare("SELECT cm3 FROM readings WHERE household_id = ? ORDER BY recorded_at DESC LIMIT 1")
-    .get(bill.household_id);
+    .prepare("SELECT cm3 FROM readings WHERE household_id = ? AND recorded_at <= ? ORDER BY recorded_at DESC LIMIT 1")
+    .get(bill.household_id, periodCutoffUtc(bill.period));
   const currCm3 = reading ? reading.cm3 : bill.curr_cm3;
   if (prevCm3 > currCm3) {
     return res.status(400).json({ error: `The starting reading cannot be higher than the current reading (${currCm3} m³).` });
@@ -878,12 +879,14 @@ router.post("/readings", authMiddleware("admin", ["officer"]), (req, res) => {
     `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, ?, ?, 'manual')`
   ).run(householdId, cm3, flowRate, flowType || "Normal");
 
-  // Keep the household's open bill in step with the new reading, so the bill
-  // does not keep charging for the reading that was current when it was made.
+  // The latest bill covers a month that has already closed, so a new reading
+  // above the bill's own reading is water used after the bill: it goes on the
+  // next bill and leaves this one alone. Only a reading below the billed
+  // reading (the billed reading was too high) corrects the unpaid bill.
   const openBill = db
     .prepare("SELECT * FROM bills WHERE household_id = ? ORDER BY id DESC LIMIT 1")
     .get(householdId);
-  if (openBill && openBill.payment_status === "Unpaid") {
+  if (openBill && openBill.payment_status === "Unpaid" && cm3 < openBill.curr_cm3) {
     const consumption = +(cm3 - openBill.prev_cm3).toFixed(4);
     const amount = computeBillAmount(Math.max(consumption, 0));
     const totalDue = +(amount + openBill.prev_balance).toFixed(2);

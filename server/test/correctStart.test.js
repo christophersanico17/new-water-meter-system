@@ -21,7 +21,9 @@ test("correcting the starting reading recalculates the latest unpaid bill", asyn
     `INSERT INTO bills (household_id, period, prev_cm3, curr_cm3, amount, prev_balance, total_due)
      VALUES ('HH-CS-1', 'Oct 2026', 0, 24, 480, 0, 480)`
   ).run().lastInsertRowid;
-  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES ('HH-CS-1', 337.39, 0, 'Normal', 'device')").run();
+  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source, recorded_at) VALUES ('HH-CS-1', 337.39, 0, 'Normal', 'device', '2026-10-31 10:00:00')").run();
+  // A November reading must not become the October bill's reading.
+  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source, recorded_at) VALUES ('HH-CS-1', 340.5, 0, 'Normal', 'device', '2026-11-20 10:00:00')").run();
 
   const server = app.listen(0);
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -84,4 +86,29 @@ test("resetting to a meter reading above the bill's reading leaves the closed bi
   const rebilled = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
   assert.equal(rebilled.curr_cm3, 350);
   assert.equal(rebilled.amount, 200);
+});
+
+test("a manual reading after the bill's month leaves the closed bill alone", async (t) => {
+  db.prepare("INSERT INTO households (id, name, standpost, meter) VALUES (?, ?, ?, ?)")
+    .run("HH-MR-1", "Manual Reading", 3, "M-MR-1");
+  const billId = db.prepare(
+    `INSERT INTO bills (household_id, period, prev_cm3, curr_cm3, amount, prev_balance, total_due)
+     VALUES ('HH-MR-1', 'Oct 2026', 343.39, 356.6, 265, 448, 713)`
+  ).run().lastInsertRowid;
+  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES ('HH-MR-1', 358.715, 0, 'Normal', 'manual')").run();
+
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+  const token = signToken({ role: "admin", email: "officer-cs@test.local", staffRole: "officer" });
+  const res = await fetch(`http://127.0.0.1:${port}/readings`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ householdId: "HH-MR-1", cm3: 358.8, flowRate: 0 }),
+  });
+  assert.equal(res.status, 200);
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
+  assert.equal(bill.curr_cm3, 356.6);
+  assert.equal(bill.amount, 265);
+  assert.equal(bill.total_due, 713);
 });
