@@ -73,6 +73,9 @@ export function residentToHousehold(resident, latestBill, reading, allBills = []
     billingDate,
 
     prevCm3: baselinePrev,
+    // The reading the latest bill was computed from (prev + this cycle). The
+    // live meter keeps counting after the bill, so it can be higher than this.
+    billCm3: latestBill ? latestBill.curr_cm3 : null,
     currCm3: reading ? reading.cm3 : currCm3,
     consumption,
     amount,

@@ -1747,14 +1747,15 @@ export function ResidentConsumption({ me }) {
 
       <LiveUsageCard me={me} />
 
-      <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 mb-5 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Previous reading" value={`${fmtCm3(me.prevCm3)} m³`} />
-        <StatCard label="Current reading" value={`${fmtCm3(me.currCm3)} m³`} />
+        <StatCard label="Billed reading" value={me.billCm3 != null ? `${fmtCm3(me.billCm3)} m³` : "—"} />
         <StatCard
           label="This cycle"
           value={`${fmtCm3(me.consumption)} m³`}
           tone={status.tone}
         />
+        <StatCard label="Live meter reading" value={`${fmtCm3(me.currCm3)} m³`} />
         <StatCard label="Last recorded flow" value={me.deviceProvisioned && me.deviceLastSeen ? `${me.lastFlow} L/min` : "No sensor"} />
       </div>
 

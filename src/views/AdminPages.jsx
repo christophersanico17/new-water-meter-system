@@ -2363,10 +2363,16 @@ export function HouseholdsPage({
                     </div>
                     {isDeviceOnline(h) && <PerSecondUsageChart liters={h.perSecondLiters || []} />}
                     <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-                      <div>Current reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} m³</span></div>
                       <div>Previous reading: <span className="font-semibold text-slate-800">{fmtCm3(h.prevCm3)} m³</span></div>
+                      <div>Billed reading: <span className="font-semibold text-slate-800">{h.billCm3 != null ? `${fmtCm3(h.billCm3)} m³` : "—"}</span></div>
                       <div>This cycle: <span className="font-semibold text-slate-800">{fmtCm3(h.consumption)} m³</span></div>
                       <div>Amount due: <span className="font-semibold text-slate-800">{peso(h.amount)}</span></div>
+                      <div>
+                        Live meter reading: <span className="font-semibold text-slate-800">{fmtCm3(h.currCm3)} m³</span>
+                        {h.billCm3 != null && h.currCm3 > h.billCm3 && (
+                          <span className="text-slate-400"> (+{fmtCm3(h.currCm3 - h.billCm3)} since bill)</span>
+                        )}
+                      </div>
                       <div>Total due: <span className="font-semibold text-slate-800">{peso(h.totalDue)}</span></div>
                     </div>
                     <div className="flex items-center justify-between pt-1">
