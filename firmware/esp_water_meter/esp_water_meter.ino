@@ -67,10 +67,11 @@ volatile unsigned long secondPulseCount = 0; // same pulses, but reset every sec
 
 // Noise filter: a loose or floating signal wire can fire this interrupt
 // hundreds of thousands of times a second. A real flow sensor at its rated
-// maximum pulses about every 4.4 ms, so edges closer together than 1 ms
-// can't be water and are ignored. (The server separately discards any
-// report that still works out to an impossible flow rate.)
-const unsigned long MIN_PULSE_GAP_US = 1000;
+// maximum (30 L/min) pulses about every 4.4 to 4.7 ms, so edges closer
+// together than 3 ms can't be water and are ignored. (1 ms let short noise
+// bursts through, which the server counted as water; it still separately
+// discards any report that works out to an impossible flow rate.)
+const unsigned long MIN_PULSE_GAP_US = 3000;
 volatile unsigned long lastPulseUs = 0;
 
 void IRAM_ATTR onPulse() {

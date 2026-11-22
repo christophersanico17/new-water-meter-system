@@ -48,3 +48,40 @@ test("correcting the starting reading recalculates the latest unpaid bill", asyn
   assert.equal(bill.curr_cm3, 337.39);
   assert.equal(bill.total_due, 328);
 });
+
+test("resetting to a meter reading above the bill's reading leaves the closed bill alone", async (t) => {
+  db.prepare("INSERT INTO households (id, name, standpost, meter) VALUES (?, ?, ?, ?)")
+    .run("HH-RS-1", "Reset Above Bill", 3, "M-RS-1");
+  const billId = db.prepare(
+    `INSERT INTO bills (household_id, period, prev_cm3, curr_cm3, amount, prev_balance, total_due)
+     VALUES ('HH-RS-1', 'Oct 2026', 343.39, 356.6, 265, 448, 713)`
+  ).run().lastInsertRowid;
+  db.prepare("INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES ('HH-RS-1', 358.87, 0, 'Normal', 'device')").run();
+
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+  const token = signToken({ role: "admin", email: "officer-cs@test.local" });
+  const reset = (cm3) =>
+    fetch(`http://127.0.0.1:${port}/readings/reset`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ householdId: "HH-RS-1", cm3 }),
+    });
+
+  const res = await reset(358.71);
+  assert.equal(res.status, 200);
+  const bill = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
+  assert.equal(bill.curr_cm3, 356.6);
+  assert.equal(bill.amount, 265);
+  assert.equal(bill.total_due, 713);
+  const latest = db.prepare("SELECT cm3 FROM readings WHERE household_id = 'HH-RS-1' ORDER BY id DESC LIMIT 1").get();
+  assert.equal(latest.cm3, 358.71);
+
+  // Below the bill's own reading, the bill is corrected down.
+  const lower = await reset(350);
+  assert.equal(lower.status, 200);
+  const rebilled = db.prepare("SELECT * FROM bills WHERE id = ?").get(billId);
+  assert.equal(rebilled.curr_cm3, 350);
+  assert.equal(rebilled.amount, 200);
+});

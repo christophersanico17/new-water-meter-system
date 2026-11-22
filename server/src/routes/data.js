@@ -917,13 +917,18 @@ router.post("/readings/reset", authMiddleware("admin", ["officer"]), (req, res) 
   if (billIsOpen && cm3 < openBill.prev_cm3) {
     return res.status(400).json({ error: `Cannot be lower than the bill's starting reading (${openBill.prev_cm3} m³).` });
   }
+  // The latest bill covers a month that has already closed, so a reset only
+  // changes it when the new reading is below the bill's own reading (the
+  // billed reading itself was too high). A reset above it corrects water used
+  // after the bill, which belongs on the next bill, not this one.
+  const rebillOpenBill = billIsOpen && cm3 < openBill.curr_cm3;
 
   const removed = db.transaction(() => {
     const deleted = db.prepare("DELETE FROM readings WHERE household_id = ? AND cm3 > ?").run(householdId, cm3);
     db.prepare(
       `INSERT INTO readings (household_id, cm3, flow_rate, flow_type, source) VALUES (?, ?, 0, 'Normal', 'manual')`
     ).run(householdId, cm3);
-    if (billIsOpen) {
+    if (rebillOpenBill) {
       const consumption = +(cm3 - openBill.prev_cm3).toFixed(4);
       const amount = computeBillAmount(consumption);
       const totalDue = +(amount + openBill.prev_balance).toFixed(2);
