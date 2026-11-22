@@ -85,11 +85,14 @@ function checkRealTimeFlow(householdId, flowRateLpm, settings, highFlowLpm) {
 
   const types = classifyRealTimeFlow(flowRateLpm, streakMinutes, settings, highFlowLpm);
 
-  if (types.includes("High Flow") && !alerts.hasRecentUnresolvedAlert(householdId, "High Flow", settings.alertThrottleMinutes)) {
+  // One open alert per type: while an alert of this type is still unresolved,
+  // the same ongoing event does not raise another one. (A 30-minute window
+  // here let a long leak add a new alert every half hour.)
+  if (types.includes("High Flow") && !alerts.hasUnresolvedAlertOfType(householdId, "High Flow")) {
     alerts.createAlert(householdId, "High Flow", `${flowRateLpm.toFixed(1)} L/min`, `${highFlowLpm} L/min`);
   }
 
-  if (types.includes("Leak Detected") && !alerts.hasRecentUnresolvedAlert(householdId, "Leak Detected", settings.alertThrottleMinutes)) {
+  if (types.includes("Leak Detected") && !alerts.hasUnresolvedAlertOfType(householdId, "Leak Detected")) {
     alerts.createAlert(
       householdId,
       "Leak Detected",

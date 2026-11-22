@@ -51,3 +51,21 @@ test("Leak Detected does not fire for only 10 minutes of the same flow", () => {
 
   assert.ok(!alerts.hasUnresolvedAlertOfType("HH-LEAK-2", "Leak Detected"));
 });
+
+test("an ongoing leak keeps one open Leak Detected alert, even after 30 minutes", () => {
+  const settings = getAlertSettings();
+  insertHousehold("HH-LEAK-3");
+  insertSteadyFlow("HH-LEAK-3", 16, 2.5);
+  devices.checkRealTimeFlow("HH-LEAK-3", 2.5, settings, settings.highFlowLpm);
+
+  // Age the open alert past the old 30-minute window, then check again.
+  db.prepare(
+    `UPDATE alerts SET created_at = datetime('now', '-45 minutes') WHERE household_id = ? AND type = 'Leak Detected'`
+  ).run("HH-LEAK-3");
+  devices.checkRealTimeFlow("HH-LEAK-3", 2.5, settings, settings.highFlowLpm);
+
+  const open = db
+    .prepare(`SELECT COUNT(*) AS n FROM alerts WHERE household_id = ? AND type = 'Leak Detected' AND status = 'Unresolved'`)
+    .get("HH-LEAK-3");
+  assert.equal(open.n, 1);
+});
